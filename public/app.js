@@ -1,3 +1,5 @@
+import { readWorkspace, storePost, storeBrand, selectBrand } from './storage.js';
+
 const $ = (id) => document.getElementById(id);
 const today = new Date();
 let focusDate = new Date(today);
@@ -8,7 +10,15 @@ let objectUrl = null;
 let editingId = null;
 let saving = false;
 let toastTimer;
-let db;
+let brands = [];
+let activeBrandId = null;
+let editingBrandId = null;
+let brandPicture = null;
+let brandBusy = false;
+let pictureRequest = 0;
+let returnToAccounts = false;
+const activeBrand = () => brands.find(brand => brand.id === activeBrandId);
+const brandPosts = () => posts.filter(post => post.brandId === activeBrandId);
 const dayKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const localDate = (value) => new Date(`${value}T12:00:00`);
 const readableDate = (d) => d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
@@ -20,35 +30,124 @@ function showToast(message) {
   toastTimer = setTimeout(() => { $('toast').hidden = true; }, 4200);
 }
 
-function openDatabase() {
-  return new Promise((resolve, reject) => {
-    // Stable storage ID: preserve drafts created before the Cuesprig rebrand.
-    const request = indexedDB.open('frame-local-calendar', 1);
-    request.onupgradeneeded = () => request.result.createObjectStore('posts', { keyPath: 'id' });
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
+function renderAvatar(element, brand) {
+  element.replaceChildren();
+  if (brand.picture) {
+    const image = document.createElement('img');
+    image.src = brand.picture; image.alt = '';
+    element.append(image);
+  } else {
+    element.textContent = brand.name.trim().slice(0, 2).toUpperCase() || '+';
+  }
 }
 
-async function readPosts() {
-  if (!db) db = await openDatabase();
-  return new Promise((resolve, reject) => {
-    const request = db.transaction('posts').objectStore('posts').getAll();
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
+function renderBrands() {
+  const brand = activeBrand();
+  $('active-brand-name').textContent = brand.name;
+  $('brand-switcher').setAttribute('aria-label', `Switch brand, current brand: ${brand.name}`);
+  $('accounts-brand-name').textContent = brand.name;
+  renderAvatar($('active-avatar'), brand);
+  renderAvatar($('accounts-avatar'), brand);
+  $('brand-list').replaceChildren();
+  for (const item of brands) {
+    const button = document.createElement('button'); button.className = 'brand-option';
+    button.setAttribute('aria-pressed', String(item.id === activeBrandId));
+    const avatar = document.createElement('span'); avatar.className = 'avatar'; avatar.setAttribute('aria-hidden', 'true');
+    renderAvatar(avatar, item);
+    const name = document.createElement('span'); name.className = 'brand-option-name'; name.textContent = item.name;
+    const check = document.createElement('span'); check.className = 'brand-check'; check.setAttribute('aria-hidden', 'true'); check.textContent = item.id === activeBrandId ? '✓' : '';
+    button.append(avatar, name, check);
+    button.addEventListener('click', async () => {
+      if (brandBusy) return;
+      brandBusy = true;
+      try {
+        await selectBrand(item.id); activeBrandId = item.id;
+        renderBrands(); renderCalendar(); $('brand-menu').hidePopover();
+      } catch { showToast('Could not switch brands. Please try again.'); }
+      finally { brandBusy = false; }
+    });
+    $('brand-list').append(button);
+  }
 }
 
-async function storePost(post) {
-  if (!db) db = await openDatabase();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction('posts', 'readwrite');
-    transaction.objectStore('posts').put(post);
-    transaction.oncomplete = resolve;
-    transaction.onerror = () => reject(transaction.error);
-    transaction.onabort = () => reject(transaction.error);
-  });
+function openBrandEditor(brand = null, fromAccounts = false) {
+  if (brandBusy) return;
+  if ($('brand-menu').matches(':popover-open')) $('brand-menu').hidePopover();
+  returnToAccounts = fromAccounts;
+  if (fromAccounts) $('accounts').close();
+  editingBrandId = brand?.id || null;
+  brandPicture = brand?.picture || null;
+  $('brand-form').reset();
+  $('save-brand').disabled = false;
+  $('brand-name').value = brand?.name || '';
+  $('brand-editor-title').textContent = brand ? 'Edit brand' : 'New brand';
+  $('save-brand').textContent = brand ? 'Save brand' : 'Create brand';
+  $('brand-error').hidden = true;
+  updatePicturePreview();
+  $('brand-editor').showModal();
+  $('brand-name').focus();
 }
+
+function updatePicturePreview() {
+  renderAvatar($('brand-picture-preview'), { name: $('brand-name').value, picture: brandPicture });
+  $('remove-brand-picture').hidden = !brandPicture;
+}
+
+function brandError(message) { $('brand-error').textContent = message; $('brand-error').hidden = false; }
+
+$('edit-active-brand').addEventListener('click', () => openBrandEditor(activeBrand()));
+$('add-brand').addEventListener('click', () => openBrandEditor());
+$('edit-brand-from-accounts').addEventListener('click', () => openBrandEditor(activeBrand(), true));
+$('brand-name').addEventListener('input', updatePicturePreview);
+for (const id of ['close-brand-editor', 'cancel-brand-editor']) $(id).addEventListener('click', () => {
+  if (!brandBusy) $('brand-editor').close();
+});
+$('brand-editor').addEventListener('cancel', event => { if (brandBusy) event.preventDefault(); });
+$('brand-editor').addEventListener('close', () => {
+  pictureRequest++;
+  if (returnToAccounts) { returnToAccounts = false; $('accounts').showModal(); }
+});
+$('upload-brand-picture').addEventListener('click', () => $('brand-picture-file').click());
+$('remove-brand-picture').addEventListener('click', () => {
+  pictureRequest++; brandPicture = null; $('brand-picture-file').value = ''; $('save-brand').disabled = false; updatePicturePreview();
+});
+$('brand-picture-file').addEventListener('change', async () => {
+  const candidate = $('brand-picture-file').files[0];
+  if (!candidate) return;
+  if (!['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(candidate.type)) {
+    brandError('Choose a PNG, JPG, WebP, or GIF image.'); return;
+  }
+  if (candidate.size > 5 * 1024 * 1024) { brandError('Choose an image smaller than 5 MB.'); return; }
+  const request = ++pictureRequest;
+  $('save-brand').disabled = true;
+  try {
+    const picture = await new Promise((resolve, reject) => {
+      const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(candidate);
+    });
+    const image = new Image(); image.src = picture; await image.decode();
+    if (request !== pictureRequest) return;
+    brandPicture = picture; updatePicturePreview(); $('brand-error').hidden = true;
+  } catch { if (request === pictureRequest) brandError('This image could not be opened. Choose another picture.'); }
+  finally { if (request === pictureRequest) $('save-brand').disabled = false; }
+});
+$('brand-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  if (brandBusy || $('save-brand').disabled) return;
+  const name = $('brand-name').value.trim();
+  if (!name) { brandError('Give your brand a name.'); $('brand-name').focus(); return; }
+  if (brands.some(brand => brand.id !== editingBrandId && brand.name.toLocaleLowerCase() === name.toLocaleLowerCase())) {
+    brandError('A brand with this name already exists. Choose another name.'); return;
+  }
+  const brand = { id: editingBrandId || crypto.randomUUID(), name, picture: brandPicture };
+  brandBusy = true; $('save-brand').disabled = true;
+  try {
+    await storeBrand(brand);
+    brands = brands.filter(item => item.id !== brand.id).concat(brand);
+    activeBrandId = brand.id;
+    renderBrands(); renderCalendar(); $('brand-editor').close();
+  } catch { brandError('Could not save this brand on your device. Please try again.'); }
+  finally { brandBusy = false; $('save-brand').disabled = false; }
+});
 
 function postCard(post) {
   const card = document.createElement('button');
@@ -107,7 +206,7 @@ function renderWeek() {
       slot.addEventListener('click', () => openComposer(key, null, time));
       column.append(slot);
     }
-    const dayPosts = posts.filter(post => post.date === key).sort((a, b) => a.time.localeCompare(b.time));
+    const dayPosts = brandPosts().filter(post => post.date === key).sort((a, b) => a.time.localeCompare(b.time));
     // Group overlapping 48-minute cards so every draft stays reachable.
     const groups = [];
     for (const post of dayPosts) {
@@ -144,7 +243,7 @@ function renderMonth() {
     const number = document.createElement('span'); number.className = 'day-number' + (key === dayKey(today) ? ' is-today' : ''); number.textContent = date.getDate();
     if (key === dayKey(today)) number.setAttribute('aria-current', 'date');
     button.append(number); button.addEventListener('click', () => openComposer(key)); cell.append(button);
-    posts.filter(post => post.date === key).sort((a, b) => a.time.localeCompare(b.time)).forEach(post => cell.append(postCard(post)));
+    brandPosts().filter(post => post.date === key).sort((a, b) => a.time.localeCompare(b.time)).forEach(post => cell.append(postCard(post)));
     grid.append(cell);
   }
 }
@@ -178,6 +277,8 @@ function attachFile(candidate) {
 function showError(message) { $('form-error').textContent = message; $('form-error').hidden = false; }
 function titleCounter() { $('title-count').textContent = `${$('post-title').value.length} / 100`; }
 function openComposer(date = dayKey(today), post = null, time = '17:00') {
+  if (!activeBrandId) { showToast('Your workspace is still loading.'); return; }
+  $('composer-brand').textContent = activeBrand().name;
   $('post-form').reset(); clearPreview(); file = null;
   editingId = post?.id || null;
   $('composer-title').innerHTML = post ? 'Edit post<span>.</span>' : 'New post<span>.</span>';
@@ -237,7 +338,7 @@ $('post-form').addEventListener('submit', async (event) => {
   if (!file) { showError('Add a video before saving your post.'); return; }
   if (!$('post-title').value.trim()) { showError('Give your video a title.'); $('post-title').focus(); return; }
   saving = true; $('save-post').disabled = true;
-  const post = { id: editingId || crypto.randomUUID(), title: $('post-title').value.trim(), description: $('post-description').value, date: $('post-date').value, time: $('post-time').value, video: file };
+  const post = { id: editingId || crypto.randomUUID(), brandId: activeBrandId, title: $('post-title').value.trim(), description: $('post-description').value, date: $('post-date').value, time: $('post-time').value, video: file };
   try {
     await storePost(post);
     posts = posts.filter((item) => item.id !== post.id).concat(post);
@@ -250,7 +351,10 @@ $('post-form').addEventListener('submit', async (event) => {
 });
 
 renderCalendar();
-try { posts = await readPosts(); renderCalendar(); }
-catch { showToast('Local storage is unavailable. Drafts cannot be saved yet.'); }
-
+try {
+  const workspace = await readWorkspace();
+  posts = workspace.posts; brands = workspace.brands; activeBrandId = workspace.activeBrandId;
+  renderBrands(); renderCalendar();
+  $('open-accounts').disabled = false; $('brand-switcher').disabled = false;
+} catch (error) { showToast(error.message || 'Local storage is unavailable. Reload to try again.'); }
 $('week-scroll').scrollTop = 8 * 60;
