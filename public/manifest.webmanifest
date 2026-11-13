@@ -1,1 +1,16 @@
-{"name":"Frame — Content calendar","short_name":"Frame","start_url":"/","display":"standalone","background_color":"#f8f9f5","theme_color":"#f8f9f5","icons":[{"src":"/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any"}]}
+{
+  "name": "Cuesprig \u2014 Content calendar",
+  "short_name": "Cuesprig",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAF5F9",
+  "theme_color": "#FAF5F9",
+  "icons": [
+    {
+      "src": "/icon.svg?v=2",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
