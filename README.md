@@ -2,19 +2,19 @@
 
 A local video calendar for creators managing YouTube, Instagram, and TikTok. Plan videos in a week or month view, organize brands, and prepare uploads using your existing Chrome sign-ins.
 
-## Install from source
+## Install in Chrome
 
-You need desktop Google Chrome and Node.js 20 or later.
+1. Download the `cuesprig-chrome-*.zip` from the repository’s **Releases** page and extract it to a folder you intend to keep.
+2. Open `chrome://extensions` in desktop Chrome.
+3. Turn on **Developer mode**, then select **Load unpacked**.
+4. Select the extracted folder that contains `manifest.json`. The welcome screen opens.
+5. Pin **Cuesprig** from Chrome’s Extensions menu. Click it, then choose **Open calendar**.
 
-1. Download this repository with **Code → Download ZIP**, then extract it into a folder you intend to keep.
-2. Open a terminal in that folder and run `npm run build`.
-3. Open `chrome://extensions` in Chrome.
-4. Turn on **Developer mode**, then select **Load unpacked**.
-5. Select the generated `dist/cuesprig` folder. The welcome screen opens.
-6. Open Chrome’s Extensions menu and pin **Cuesprig**.
-7. Click Cuesprig, then **Open calendar**. Create your brand and add a video.
+For updates, extract the new release into the same folder and click **Reload** on the Cuesprig card in `chrome://extensions`. Keeping the folder path preserves the extension’s identity and local storage.
 
-Keep the extracted folder in place. To update, replace the source files, run `npm run build`, and click **Reload** on the Cuesprig card at `chrome://extensions`. Keep the same extension folder to retain its identity and local storage.
+### Build from source
+
+Use Node.js 20 or later. Download or clone the repository, run `npm run build` in its folder, and load `dist/cuesprig` using the same Chrome steps. For a release ZIP, run `python3 scripts/package-extension.py` after the build with Python 3.11 or later.
 
 ## Prepare a video
 
@@ -51,7 +51,7 @@ There are no analytics or bundled credentials. Clearing extension storage or uni
 
 ## Current development status
 
-This release is under active development. Remaining work includes live browser verification, automatic schedule verification, backups/import, read-only phone synchronization, and release ZIP packaging. Browser automation can need updates when platform interfaces change. Check the platform’s own scheduler to confirm what will publish.
+This release is under active development. Remaining work includes live browser verification, automatic schedule verification, backups/import, read-only phone synchronization. Browser automation can need updates when platform interfaces change. Check the platform’s own scheduler to confirm what will publish.
 
 ## Contributing
 
