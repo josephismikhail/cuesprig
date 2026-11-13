@@ -1,11 +1,12 @@
 export const handoffKey = tabId => `handoff:${tabId}`;
 
-export async function prepareHandoff(browser, id, platform, url) {
+export async function prepareHandoff(browser, id, platform, url, { activate = true } = {}) {
   const tab = await browser.tabs.create({ url, active: false });
   const key = handoffKey(tab.id);
   try {
     await browser.storage.session.set({ [key]: { id, platform, tabId: tab.id } });
-    await browser.tabs.update(tab.id, { active: true });
+    if (activate) await browser.tabs.update(tab.id, { active: true });
+    return tab;
   } catch (error) {
     await Promise.allSettled([browser.storage.session.remove(key), browser.tabs.remove(tab.id)]);
     throw error;

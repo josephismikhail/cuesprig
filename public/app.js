@@ -200,6 +200,53 @@ function postCard(post) {
   return card;
 }
 
+function backgroundUploadControls(id, platform, name, url) {
+  const row = document.createElement('div'); row.className = 'platform-actions';
+  row.dataset.uploadJob = `send:${id}:${platform}`;
+  const send = document.createElement('button'); send.className = 'today-button'; send.textContent = `Send to ${name}`;
+  const review = document.createElement('button'); review.className = 'today-button';
+  review.textContent = `Open ${name} tab`; review.hidden = true;
+  const status = document.createElement('span'); status.setAttribute('role', 'status');
+  let job;
+  row.renderUpload = value => {
+    job = value;
+    status.textContent = job?.message ?? '';
+    review.hidden = !job?.tabId || job.state === 'running';
+    send.disabled = job?.state === 'running' || Boolean(job?.tabId);
+  };
+  chrome.storage.session.get(row.dataset.uploadJob).then(records => row.renderUpload(records[row.dataset.uploadJob])).catch(() => {});
+  send.addEventListener('click', async () => {
+    send.disabled = true;
+    try {
+      if (!await chrome.permissions.request({ origins: [new URL(url).origin + '/*'] })) {
+        throw new Error(`Allow ${name} access to send in the background.`);
+      }
+      status.textContent = 'Starting background upload…';
+      const result = await chrome.runtime.sendMessage({ type: 'cuesprig:send', id, platform });
+      if (!result?.ok) throw new Error(result?.error || 'Could not start background upload.');
+    } catch (error) { status.textContent = error.message; }
+    finally { send.disabled = job?.state === 'running' || Boolean(job?.tabId); }
+  });
+  review.addEventListener('click', async () => {
+    try {
+      const tab = await chrome.tabs.update(job.tabId, { active: true });
+      if (tab.windowId != null) await chrome.windows.update(tab.windowId, { focused: true });
+    } catch { status.textContent = 'The upload tab is closed.'; }
+  });
+  row.append(send, review, status);
+  return row;
+}
+
+if (globalThis.chrome?.runtime?.id) {
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== 'session') return;
+    for (const row of document.querySelectorAll('[data-upload-job]')) {
+      const change = changes[row.dataset.uploadJob];
+      if (change) row.renderUpload(change.newValue);
+    }
+  });
+}
+
 function openDayPosts(date, selectedId = null) {
   $('day-posts-title').textContent = readableDate(localDate(date));
   const list = $('day-posts-list'); list.replaceChildren();
@@ -239,6 +286,9 @@ function openDayPosts(date, selectedId = null) {
           } catch { showToast('Could not open the platform. Try again.'); }
         });
         actions.append(prepare);
+        if (original.video && !original.schedules?.[platform]) {
+          content.append(backgroundUploadControls(post.id, platform, name, url));
+        }
       }
     }
     content.append(actions);

@@ -37,6 +37,12 @@ For updates, extract the new release into the same folder and click **Reload** o
 
 Use Node.js 20 or later. Download or clone the repository, run `npm run build` in its folder, and load `dist/cuesprig` using the same Chrome steps. For a release ZIP, run `python3 scripts/package-extension.py` after the build with Python 3.11 or later.
 
+## Send a video in the background
+
+In a video’s details, choose **Send to YouTube**, **Send to Instagram**, or **Send to TikTok**. Approve access to that platform in Chrome if asked. The extension opens an inactive tab and attempts to hand off the video when it finds an upload field. Progress in Cuesprig measures the handoff to the browser editor. Use **Open platform tab** when the editor needs sign-in or review. Choose **Prepare for** to open the manual upload workflow directly.
+
+Finish scheduling on the platform and record its confirmation in Cuesprig.
+
 ## Prepare a video
 
 1. Add a video, YouTube title, description, date, and time to your calendar.

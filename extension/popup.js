@@ -1,7 +1,8 @@
+import { transferVideo } from './transfer-video.js';
 import { downloadVideo } from './app/download-video.js';
 import { readHandoff } from './app/handoffs.js';
 import { readWorkspace } from './app/storage.js';
-import { platforms, isTransferTab, initializeVideoTransfer, receiveVideoChunk, finishVideoTransfer, fillTextFields } from './platforms.js';
+import { platforms, isTransferTab, fillTextFields } from './platforms.js';
 
 const status = document.getElementById('status');
 let post;
@@ -64,25 +65,13 @@ document.getElementById('download-video').addEventListener('click', () => {
 document.getElementById('upload-video').addEventListener('click', () => onPlatform(async () => {
   const button = document.getElementById('upload-video'); button.disabled = true;
   try {
-    if (!post.video) throw new Error('This post has no local video.');
-    const [{ result: ready }] = await chrome.scripting.executeScript({
-      target: { tabId: tab.id }, func: initializeVideoTransfer,
-    });
-    if (!ready) throw new Error('Open a single video upload editor, or download the video and select it in the editor.');
-    const chunkSize = 256 * 1024;
-    for (let offset = 0; offset < post.video.size; offset += chunkSize) {
-      const bytes = new Uint8Array(await post.video.slice(offset, offset + chunkSize).arrayBuffer());
-      let binary = ''; for (const byte of bytes) binary += String.fromCharCode(byte);
-      await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: receiveVideoChunk, args: [btoa(binary)] });
-      status.textContent = `Preparing video ${Math.min(100, Math.round((offset + chunkSize) / post.video.size * 100))}%`;
-    }
-    await chrome.scripting.executeScript({
-      target: { tabId: tab.id }, func: finishVideoTransfer,
-      args: [{ name: post.video.name || 'video.mp4', type: post.video.type || 'video/mp4' }],
+    const inject = async (func, ...args) => {
+      const [result] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func, args });
+      return result?.result;
+    };
+    await transferVideo(inject, post.video, percent => {
+      status.textContent = `Preparing video ${percent}%`;
     });
     status.textContent = 'Video handed to the platform. Wait for its upload to finish, then review the account and schedule.';
-  } catch (error) {
-    await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: () => { delete globalThis.cuesprigUpload; } }).catch(() => {});
-    throw error;
   } finally { button.disabled = false; }
 }));
