@@ -38,6 +38,25 @@ test('packaged extension saves a video and records a platform schedule in Chromi
     return (await readWorkspace()).posts.map(({ title, schedules, video }) => ({ title, schedules, size: video.size }));
   });
   assert.deepEqual(saved, [{ title: 'Example clip', schedules: { instagram: { date: '2027-01-20', time: '13:00' } }, size: 16 }]);
+  await page.getByRole('button', { name: /^Switch brand/ }).click();
+  await page.getByRole('button', { name: 'Backup', exact: true }).click();
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Download backup' }).click(),
+  ]);
+  await page.evaluate(async () => {
+    const { restoreWorkspace } = await import('/app/storage.js');
+    await restoreWorkspace({ posts: [], brands: [{ id: 'default', name: 'Empty test workspace' }], activeBrandId: 'default' });
+  });
+  await page.getByLabel('Choose a backup to restore').setInputFiles(await download.path());
+  await page.getByLabel('Replace this calendar with the backup').check();
+  await Promise.all([page.waitForEvent('load'), page.getByRole('button', { name: 'Restore backup' }).click()]);
+  const restored = await page.evaluate(async () => {
+    const { readWorkspace } = await import('/app/storage.js');
+    const [post] = (await readWorkspace()).posts;
+    return { title: post.title, schedules: post.schedules, bytes: await post.video.text() };
+  });
+  assert.deepEqual(restored, { title: 'Example clip', schedules: saved[0].schedules, bytes: 'test video bytes' });
   await page.goto(`${origin}/popup.html`);
   await page.getByRole('button', { name: 'Open calendar' }).waitFor();
   assert.deepEqual(errors, []);

@@ -41,7 +41,7 @@ npm run check
 
 The development calendar is available at http://127.0.0.1:4317. Tests cover title display, overlapping entries, month overflow, day details, brand isolation, URL restrictions, and the built extension’s entrypoints.
 
-The development server and installed extension have separate browser storage. Existing localhost drafts remain on that origin. Export/import for moving drafts is still pending.
+The development server and installed extension have separate browser storage. To move drafts from localhost into the extension, open the brand menu in the localhost calendar, choose **Backup**, then **Download backup**. In the extension calendar, open **Backup**, choose that file, check **Replace this calendar with the backup**, and select **Restore backup**. Restore replaces the destination workspace, so download a backup there first if it already contains drafts.
 
 ## Privacy and storage
 
@@ -63,7 +63,7 @@ The phone shows dates and times as entered on the desktop. It receives titles, b
 
 ## Current development status
 
-This release is under active development. Remaining work includes live browser verification, automatic schedule verification, backups/import, and live phone installation verification. Browser automation can need updates when platform interfaces change. Check the platform’s own scheduler to confirm what will publish.
+This release is under active development. Remaining work includes live browser verification, automatic schedule verification and live phone installation verification. Browser automation can need updates when platform interfaces change. Check the platform’s own scheduler to confirm what will publish.
 
 ## Contributing
 

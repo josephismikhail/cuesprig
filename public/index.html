@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="/styles.css">
   <script type="module" src="/app.js"></script>
   <script type="module" src="/phone-sync.js"></script>
+  <script type="module" src="/backup-ui.js"></script>
 </head>
 <body>
   <header class="topbar">
@@ -23,7 +24,7 @@
     </div>
     <div id="brand-menu" popover>
       <p class="menu-label">Your brands</p><div id="brand-list"></div>
-      <div class="brand-menu-footer"><button id="edit-active-brand">Edit brand</button><button id="add-brand">+ Add brand</button></div>
+      <div class="brand-menu-footer"><button id="edit-active-brand">Edit brand</button><button id="add-brand">+ Add brand</button><button id="open-backup">Backup</button></div>
     </div>
   </header>
   <main>
@@ -54,6 +55,17 @@
       <p id="schedule-error" role="alert" hidden></p>
       <div class="platform-actions"><button type="submit" class="save-button">Save schedule record</button><button type="button" id="remove-schedule" class="today-button" hidden>Remove record</button></div>
     </form>
+  </dialog>
+  <dialog id="backup-dialog" aria-labelledby="backup-title">
+    <div class="accounts-header"><h2 id="backup-title">Calendar backup</h2><button type="button" class="close-button" id="close-backup" aria-label="Close backup">×</button></div>
+    <p>A backup includes your brands, videos, and calendar. Store it privately.</p>
+    <button type="button" class="today-button" id="export-backup">Download backup</button>
+    <form id="restore-backup">
+      <div class="field"><label for="backup-file">Choose a backup to restore</label><input type="file" id="backup-file" accept=".cuesprig" required></div>
+      <label class="backup-confirm"><input type="checkbox" id="confirm-restore" required> Replace this calendar with the backup</label>
+      <button type="submit" id="import-backup" class="save-button">Restore backup</button>
+    </form>
+    <p id="backup-status" role="status"></p>
   </dialog>
   <dialog id="phone-sync" aria-labelledby="phone-sync-title">
     <form id="phone-sync-form">
