@@ -110,6 +110,24 @@ test('packaged extension saves a video and records a platform schedule in Chromi
     return Object.keys((await readWorkspace()).posts[0].schedules).sort();
   });
   assert.deepEqual(destinations, ['instagram', 'tiktok', 'youtube']);
+  const receipts = await page.evaluate(async () => {
+    const { applyRemoteChanges, readWorkspace } = await import('/app/storage.js');
+    const origin = 'https://calendar.example.com';
+    const change = { id: 'test-change', kind: 'create', postId: 'chatgpt-draft', brandId: 'default',
+      title: 'Draft from ChatGPT', date: '2027-01-20', time: '14:00',
+      media: { name: 'clip.mp4', type: 'video/mp4', expiresAt: Date.now() + 60000 } };
+    let downloads = 0;
+    const download = async () => { downloads++; return new File(['fixture clip'], 'clip.mp4', { type: 'video/mp4' }); };
+    const first = await applyRemoteChanges([change], origin, download);
+    const replay = await applyRemoteChanges([change], origin, download);
+    const matches = (await readWorkspace()).posts.filter(post => post.id === change.postId);
+    return { first, replay, count: matches.length, downloads, video: await matches[0].video.text() };
+  });
+  assert.deepEqual(receipts.first, [{ id: 'test-change', status: 'applied' }]);
+  assert.deepEqual(receipts.replay, receipts.first);
+  assert.equal(receipts.count, 1);
+  assert.equal(receipts.downloads, 1);
+  assert.equal(receipts.video, 'fixture clip');
   await page.goto(`${origin}/popup.html`);
   await page.getByRole('button', { name: 'Open calendar' }).waitFor();
   assert.deepEqual(errors, []);

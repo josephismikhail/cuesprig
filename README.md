@@ -88,6 +88,37 @@ The service binds to `127.0.0.1:4318`. Put it behind your host's HTTPS reverse p
 
 The phone shows dates and times as entered on the desktop. It receives titles, brand names, posting times, and platforms. Video files, captions, brand pictures, and social account sessions stay on the desktop. Canceling or changing a schedule on a social platform requires updating its record in Cuesprig. The read key grants access to the calendar. Share it only with people you want to have access and rotate it if needed.
 
+## Connect ChatGPT
+
+For a hosted deployment, the included Dockerfile runs the sync server as a non-root process on port 4318. Build it with `docker build -t cuesprig-sync .` or point a container host at the repository. Supply the settings below as secrets, mount persistent storage at `/data`, and use the host's HTTPS endpoint. Configure `/healthz` as the health check. Local runs still listen on loopback by default.
+
+Cuesprig can expose your synced calendar through a private ChatGPT MCP plugin. It can list brands, drafts, and recorded schedules, create and edit drafts, and add or remove schedule records. Writes queue until desktop sync, and ChatGPT can check whether a change was applied or rejected. Record a schedule only after the platform accepts it. The connector has no access to your platform sessions or video files.
+
+1. Set up the optional phone calendar server as described above. Use a single server process and one Chrome workspace per sync server. Install server dependencies with `npm ci --omit=dev`.
+2. Configure an OAuth provider that issues signed JWT access tokens and supports the OAuth client setup for custom ChatGPT MCP servers. Use the HTTPS MCP endpoint as the token audience. Configure `calendar:read` and `calendar:write` scopes. Set these environment variables on the server:
+
+   | Variable | Value |
+   | --- | --- |
+   | `CUESPRIG_MCP_URL` | The HTTPS MCP resource URL, e.g. `https://calendar.example.com/mcp` |
+   | `CUESPRIG_OAUTH_ISSUER` | Exact OAuth issuer, including any trailing slash |
+   | `CUESPRIG_OAUTH_JWKS` | The provider’s HTTPS public signing-key endpoint |
+   | `CUESPRIG_OAUTH_SUBJECT` | The OAuth subject of the only user allowed to access this workspace |
+
+3. In Cuesprig’s **Phone calendar** settings, enable **Sync drafts and schedule changes with ChatGPT** and click **Save and sync**. This also shares draft titles, captions, and planned times with your own server. Use **Save and sync** again to pull queued changes on demand. Editing the local calendar also triggers sync.
+4. In [ChatGPT Plugins](https://chatgpt.com/plugins), add a custom MCP server with the HTTPS MCP URL and OAuth authentication. Authorize the scopes you want to use. See [OpenAI’s connection guide](https://developers.openai.com/apps-sdk/deploy/connect-chatgpt) for provider and workspace requirements.
+
+### Send a video from ChatGPT
+
+On a ChatGPT surface that accepts your video attachment, attach the clip and say: “Use Cuesprig to import this video for Studio. Title: A fresh start. Description: A look behind the scenes.” You can add a planned date and time. Without them, Cuesprig uses today at 5 PM in the last synced desktop time zone as a draft slot.
+
+To enable the attachment tool, set `CUESPRIG_ATTACHMENT_ORIGINS` on the connector host to the exact, trusted HTTPS origins used by your ChatGPT attachment delivery, separated by commas. Do not allow arbitrary origins. Refresh the ChatGPT tool list after enabling it.
+
+The connector streams one MP4, MOV, or WebM file at a time to private staging storage. The limit is 100 MiB per video and 200 MiB total staged. Open or return to the desktop calendar to import queued drafts. The server deletes the staged file when the desktop acknowledges the import. After 24 hours a staged file cannot be retrieved, and expired files are removed during the next video intake. For a host with retention requirements, set up storage cleanup for expired files. Videos are outside phone calendar sync and calendar read tools.
+
+An imported clip is a draft. Use the extension to prepare the platform upload and record the platform's confirmation. No social account action is triggered by the import.
+
+The OAuth connection uses separate credentials from the phone and desktop keys. Keep the desktop write key private. Turning off ChatGPT sync stops desktop transfers. Disable the MCP endpoint or revoke the OAuth authorization to stop ChatGPT access to the last server snapshot.
+
 ## Current development status
 
 This release is under active development. Remaining work includes live browser verification, automatic schedule verification and live phone installation verification. Browser automation can need updates when platform interfaces change. Check the platform’s own scheduler to confirm what will publish.
