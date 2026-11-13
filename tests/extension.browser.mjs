@@ -39,13 +39,9 @@ test('packaged extension saves a video and records a platform schedule in Chromi
   await page.getByRole('button', { name: 'Save schedule record' }).click();
   await page.getByRole('button', { name: /^Example clip,.*Instagram/ }).click();
   await page.getByText('Scheduled (recorded by you) · Instagram', { exact: true }).waitFor();
-  for (const [platform, url] of [['YouTube', 'https://studio.youtube.com/'], ['TikTok', 'https://www.tiktok.com/tiktokstudio/upload']]) {
-    await context.route(url, route => route.fulfill({ contentType: 'text/html', body: '<h1>Test upload editor</h1>' }));
-    const [editor] = await Promise.all([
-      context.waitForEvent('page'),
-      page.getByRole('button', { name: `Prepare for ${platform}` }).click(),
-    ]);
-    await editor.waitForURL(url);
+  for (const [platform, host] of [['YouTube', 'studio.youtube.com'], ['TikTok', 'www.tiktok.com']]) {
+    await context.route(`https://${host}/**`, route => route.fulfill({ contentType: 'text/html', body: '<h1>Test upload editor</h1>' }));
+    await page.getByRole('button', { name: `Prepare for ${platform}` }).click();
     await page.waitForFunction(async expected => Object.values(await chrome.storage.session.get())
       .some(record => record.platform === expected), platform.toLowerCase());
   }
@@ -54,9 +50,9 @@ test('packaged extension saves a video and records a platform schedule in Chromi
   const handoffs = await readHandoffs();
   assert.deepEqual(handoffs.map(handoff => handoff.platform).sort(), ['tiktok', 'youtube']);
   assert.equal(new Set(handoffs.map(handoff => handoff.id)).size, 1);
-  const youtube = context.pages().find(tab => tab.url() === 'https://studio.youtube.com/');
-  assert.ok(youtube);
-  await youtube.close();
+  assert.equal(new Set(handoffs.map(handoff => handoff.tabId)).size, 2);
+  const youtube = handoffs.find(handoff => handoff.platform === 'youtube');
+  await worker.evaluate(id => chrome.tabs.remove(id), youtube.tabId);
   await page.waitForFunction(async () => {
     const records = Object.values(await chrome.storage.session.get());
     return !records.some(record => record.platform === 'youtube');
