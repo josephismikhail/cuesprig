@@ -4,6 +4,20 @@ A local video calendar for creators managing YouTube, Instagram, and TikTok. Pla
 
 ## Install in Chrome
 
+### Windows quick setup
+
+Paste this into PowerShell:
+
+```powershell
+& ([scriptblock]::Create((Invoke-RestMethod 'https://raw.githubusercontent.com/josephismikhail/cuesprig/main/install.ps1')))
+```
+
+The [installer](install.ps1) downloads and verifies the latest release, saves it in a stable folder, copies that folder’s path, and opens Chrome. For the first install, turn on **Developer mode**, click **Load unpacked**, then paste the copied path into the folder picker’s address bar and select that folder. Cuesprig opens its welcome screen.
+
+To update, run the same command and click **Reload** on the Cuesprig card in Chrome.
+
+### Manual installation
+
 1. Download the `cuesprig-chrome-*.zip` from the repository’s **Releases** page and extract it to a folder you intend to keep.
 2. Open `chrome://extensions` in desktop Chrome.
 3. Turn on **Developer mode**, then select **Load unpacked**.
