@@ -227,8 +227,9 @@ function openDayPosts(date, selectedId = null) {
         const prepare = document.createElement('button'); prepare.className = 'today-button'; prepare.textContent = `Prepare for ${name}`;
         prepare.addEventListener('click', async () => {
           try {
-            await chrome.storage.local.set({ pendingPost: { id: post.id, platform } });
-            await chrome.tabs.create({ url });
+            const tab = await chrome.tabs.create({ url, active: false });
+            await chrome.storage.local.set({ pendingPost: { id: post.id, platform, tabId: tab.id } });
+            await chrome.tabs.update(tab.id, { active: true });
           } catch { showToast('Could not open the platform. Try again.'); }
         });
         actions.append(prepare);

@@ -8,6 +8,19 @@ export function isPlatformUrl(platform, url) {
   } catch { return false; }
 }
 
+export function isTransferTab(pending, tab) {
+  return Number.isInteger(pending?.tabId) && tab?.id === pending.tabId && isPlatformUrl(pending.platform, tab.url);
+}
+
+export function initializeVideoTransfer() {
+  const inputs = Array.from(document.querySelectorAll('input[type="file"]')).filter(input => !input.disabled);
+  const videoInputs = inputs.filter(input => /(?:video\/|\.(?:mp4|mov|webm|m4v)\b)/i.test(input.accept));
+  const candidates = videoInputs.length ? videoInputs : inputs.filter(input => !input.accept);
+  if (candidates.length !== 1) return false;
+  globalThis.cuesprigUpload = { input: candidates[0], chunks: [] };
+  return true;
+}
+
 export function fillTextFields({ title, description, platform }) {
   const selectors = platform === 'youtube'
     ? ['#title-textarea #textbox', '#description-textarea #textbox']
