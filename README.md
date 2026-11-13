@@ -90,6 +90,8 @@ The phone shows dates and times as entered on the desktop. It receives titles, b
 
 ## Connect ChatGPT
 
+For a hosted deployment, the included Dockerfile runs the sync server as a non-root process on port 4318. Build it with `docker build -t cuesprig-sync .` or point a container host at the repository. Supply the settings below as secrets, mount persistent storage at `/data`, and use the host's HTTPS endpoint. Configure `/healthz` as the health check. Local runs still listen on loopback by default.
+
 Cuesprig can expose your synced calendar through a private ChatGPT MCP plugin. It can list brands, drafts, and recorded schedules, create and edit drafts, and add or remove schedule records. Writes queue until desktop sync, and ChatGPT can check whether a change was applied or rejected. Record a schedule only after the platform accepts it. The connector has no access to your platform sessions or video files.
 
 1. Set up the optional phone calendar server as described above. Use a single server process and one Chrome workspace per sync server. Install server dependencies with `npm ci --omit=dev`.

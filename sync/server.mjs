@@ -49,6 +49,7 @@ export function calendarServer({ readToken, writeToken, filename, chatgpt }) {
   let writes = Promise.resolve();
   return createServer(async (request, response) => {
     const send = (code, body, type = 'application/json') => response.writeHead(code, { ...headers, 'Content-Type': `${type}; charset=utf-8` }).end(body);
+    if (request.method === 'GET' && request.url === '/healthz') return send(200, '{"ok":true}');
     if (connector && request.url === '/.well-known/oauth-protected-resource/mcp') {
       if (request.method !== 'GET') return send(405);
       return send(200, JSON.stringify({ resource: chatgpt.audience, authorization_servers: [chatgpt.issuer],
@@ -147,5 +148,6 @@ if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) 
     readToken: process.env.CUESPRIG_READ_TOKEN,
     writeToken: process.env.CUESPRIG_WRITE_TOKEN,
     filename: resolve(process.env.CUESPRIG_SYNC_FILE || '.local/calendar.json'),
-  }).listen(Number(process.env.CUESPRIG_SYNC_PORT || 4318), '127.0.0.1', () => console.log('Cuesprig phone calendar is ready on loopback.'));
+  }).listen(Number(process.env.CUESPRIG_SYNC_PORT || 4318), process.env.CUESPRIG_SYNC_HOST || '127.0.0.1',
+    () => console.log('Cuesprig sync server is ready.'));
 }
