@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { readFile } from 'node:fs/promises';
+import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
@@ -145,4 +147,66 @@ test('upload helpers attach intact bytes and fill the editor without submitting'
   assert.equal(await page.locator('#description-textarea').textContent(), 'Example description');
   assert.equal(await page.locator('body').getAttribute('data-changed'), 'yes');
   assert.equal(await page.locator('body').getAttribute('data-submitted'), null);
+});
+
+test('the extension popup transfers a saved video to its prepared editor tab', { timeout: 30000 }, async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'cuesprig-popup-test-'));
+  let context;
+  try {
+    const bundle = join(directory, 'extension');
+    await cp(extension, bundle, { recursive: true });
+    const manifestPath = join(bundle, 'manifest.json');
+    const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+    // A fixture-only grant stands in for clicking Chrome's toolbar action.
+    manifest.host_permissions = ['https://studio.youtube.com/*'];
+    await writeFile(manifestPath, JSON.stringify(manifest));
+    context = await chromium.launchPersistentContext('', {
+      channel: 'chromium',
+      args: [`--disable-extensions-except=${bundle}`, `--load-extension=${bundle}`],
+    });
+    const worker = context.serviceWorkers()[0] ?? await context.waitForEvent('serviceworker', { timeout: 10000 });
+    const origin = new URL('.', worker.url()).href;
+    const editorUrl = 'https://studio.youtube.com/';
+    await context.route(editorUrl, route => route.fulfill({
+      contentType: 'text/html',
+      body: '<input type="file" accept="video/*"><div id="title-textarea"><div id="textbox" contenteditable="true"></div></div>',
+    }));
+    const editor = await context.newPage();
+    await editor.goto(editorUrl);
+    const popup = await context.newPage();
+    await popup.goto(new URL('app/index.html', origin).href);
+    await popup.evaluate(async () => {
+      const { storePost } = await import('/app/storage.js');
+      await storePost({
+        id: 'fixture', brandId: 'default', title: 'Fixture title', description: 'Fixture caption',
+        date: '2099-01-01', time: '13:00',
+        video: new File([new Uint8Array(300000).fill(42)], 'fixture.mp4', { type: 'video/mp4' }),
+      });
+    });
+    const [tab] = await worker.evaluate(async () => chrome.tabs.query({ url: 'https://studio.youtube.com/*' }));
+    assert.ok(tab);
+    await worker.evaluate(async id => chrome.storage.session.set({
+      [`handoff:${id}`]: { id: 'fixture', platform: 'youtube', tabId: id },
+    }), tab.id);
+    // The toolbar popup is not a browser tab. Emulate its active-tab query while
+    // loading it in a regular test page, and leave scripting and storage intact.
+    await popup.addInitScript(activeTab => {
+      if (location.pathname === '/popup.html') chrome.tabs.query = async () => [activeTab];
+    }, tab);
+    await popup.goto(new URL('popup.html', origin).href);
+    await popup.getByRole('button', { name: 'Insert video', exact: true }).click({ timeout: 8000 });
+    await popup.getByText(/Video handed to the platform/).waitFor({ timeout: 8000 });
+    const transferred = await editor.locator('input[type=file]').evaluate(async input => {
+      const file = input.files[0];
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      return { name: file.name, size: bytes.length, intact: bytes.every(byte => byte === 42) };
+    });
+    assert.deepEqual(transferred, { name: 'fixture.mp4', size: 300000, intact: true });
+    await popup.getByRole('button', { name: 'Fill title and description' }).click();
+    await popup.getByText(/Filled title/).waitFor();
+    assert.equal(await editor.locator('#textbox').textContent(), 'Fixture title');
+  } finally {
+    await context?.close();
+    await rm(directory, { recursive: true, force: true });
+  }
 });
