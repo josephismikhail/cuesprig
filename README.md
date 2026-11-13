@@ -67,4 +67,4 @@ This release is under active development. Remaining work includes live browser v
 
 ## Contributing
 
-Use fictional data in examples and screenshots. Run `npm test` and `npm run check` before submitting changes. Keep credentials, browser profiles, exports, personal media, and local configuration out of Git. Report platform failures with the platform name and reproduction steps, omitting account identifiers and private content.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for pull requests, tests, and repository maintenance. Keep account identifiers, private media, and exports out of issue reports and commits.
