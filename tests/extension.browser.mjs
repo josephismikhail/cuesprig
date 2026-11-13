@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
-const extension = fileURLToPath(new URL('../dist/cuesprig', import.meta.url));
+const extension = process.env.CUESPRIG_TEST_EXTENSION ?? fileURLToPath(new URL('../dist/cuesprig', import.meta.url));
 
 test('packaged extension saves a video and records a platform schedule in Chromium', { timeout: 45000 }, async t => {
   const context = await chromium.launchPersistentContext('', {
@@ -16,11 +16,18 @@ test('packaged extension saves a video and records a platform schedule in Chromi
   t.after(() => context.close());
   const worker = context.serviceWorkers()[0] ?? await context.waitForEvent('serviceworker', { timeout: 10000 });
   const origin = new URL('.', worker.url()).href.slice(0, -1);
-  const page = await context.newPage();
+  const welcomeUrl = `${origin}/welcome.html`;
+  const page = context.pages().find(tab => tab.url() === welcomeUrl)
+    ?? await context.waitForEvent('page', { predicate: async tab => {
+      await tab.waitForURL(welcomeUrl, { timeout: 8000 }).catch(() => {});
+      return tab.url() === welcomeUrl;
+    }, timeout: 10000 });
   page.setDefaultTimeout(8000);
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.goto(`${origin}/app/index.html`);
+  await page.getByRole('heading', { name: 'Welcome to Cuesprig' }).waitFor();
+  await page.getByRole('link', { name: 'Open calendar', exact: true }).click();
+  await page.waitForURL(`${origin}/app/index.html`);
   await page.getByRole('button', { name: 'Add a video post' }).click();
   await page.locator('#video-file').setInputFiles({ name: 'fixture.mp4', mimeType: 'video/mp4', buffer: Buffer.from('test video bytes') });
   await page.getByLabel('Title for YouTube').fill('Example clip');
