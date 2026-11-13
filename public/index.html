@@ -75,6 +75,7 @@
       <div class="field"><label for="sync-origin">Calendar server URL</label><input id="sync-origin" type="url" placeholder="https://calendar.example.com" required></div>
       <div class="field"><label for="sync-key">Calendar write key</label><input id="sync-key" type="password" autocomplete="off" required minlength="32"></div>
       <div class="platform-actions"><button class="save-button" type="submit">Save and sync</button><button class="today-button" type="button" id="disconnect-sync" hidden>Disconnect</button></div>
+      <label><input id="sync-chatgpt" type="checkbox"> Sync drafts and schedule changes with ChatGPT</label>
       <p id="sync-status" role="status"></p>
     </form>
   </dialog>

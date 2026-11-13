@@ -537,7 +537,7 @@ window.addEventListener('drop', (event) => { if ([...event.dataTransfer.types].i
 $('post-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   if (saving) return;
-  if (!file) { showError('Add a video before saving your post.'); return; }
+  if (!file && event.submitter?.id === 'save-and-prepare') { showError('Attach a video before preparing an upload.'); return; }
   if (!$('post-title').value.trim()) { showError('Give your video a title.'); $('post-title').focus(); return; }
   const prepare = event.submitter?.id === 'save-and-prepare';
   saving = true; $('save-post').disabled = $('save-and-prepare').disabled = true;
@@ -546,7 +546,7 @@ $('post-form').addEventListener('submit', async (event) => {
   try {
     const post = previous ? await updatePost(previous.id, current => ({ ...current, ...changes })) : changes;
     if (!previous) await storePost(post);
-    if (post.schedules) window.dispatchEvent(new Event('cuesprig:schedules-changed'));
+    window.dispatchEvent(new Event('cuesprig:schedules-changed'));
     posts = posts.filter((item) => item.id !== post.id).concat(post);
     const [entry] = calendarEntries(post);
     focusDate = localDate(entry.date);
@@ -557,6 +557,14 @@ $('post-form').addEventListener('submit', async (event) => {
     else showToast(previous ? 'Post updated.' : 'Draft saved to your calendar.');
   } catch { showError('Could not save this video on your device. Browser storage may be full or unavailable. Your draft is still here.'); }
   finally { saving = false; $('save-post').disabled = $('save-and-prepare').disabled = false; }
+});
+
+window.addEventListener('cuesprig:calendar-imported', async () => {
+  try {
+    const workspace = await readWorkspace();
+    posts = workspace.posts;
+    renderCalendar();
+  } catch { showToast('Reload Cuesprig to see the synced changes.'); }
 });
 
 renderCalendar();
