@@ -1,0 +1,10 @@
+:root { font:16px/1.5 system-ui,sans-serif; color:#35243f; background:#faf5f9; }
+body { margin:0; } main { max-width:560px; margin:auto; padding:24px; }
+header { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+h1 { font-size:38px; letter-spacing:-1.5px; margin:0; }
+h2 { font-size:17px; margin:24px 0 8px; } h3 { font-size:16px; margin:0; overflow-wrap:anywhere; }
+p { color:#6f5e76; } article { background:#fff; padding:14px; margin:6px 0; border-radius:10px; }
+article p { margin:4px 0 0; font-size:13px; } label { display:block; }
+button,input { font:inherit; padding:10px; border-radius:8px; border:1px solid #ded2e5; }
+button { color:inherit; background:#e8dcf2; cursor:pointer; } input { width:100%; box-sizing:border-box; margin:8px 0; }
+#disconnect { margin-top:24px; background:transparent; }
