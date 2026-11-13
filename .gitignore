@@ -1,0 +1,11 @@
+node_modules/
+.env
+.env.*
+!.env.example
+*.log
+*.mp4
+*.mov
+*.webm
+.local/
+test-results/
+browser-profile/
