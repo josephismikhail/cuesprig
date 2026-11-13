@@ -15,25 +15,35 @@
   <header class="topbar">
     <a class="brand" href="/" aria-label="Cuesprig home"><img class="brand-mark" src="/brand-mark.svg" alt="" width="40" height="44">cuesprig</a>
     <span class="topbar-caption">Good content. Right on time.</span>
-    <span class="local-badge"><span></span>Local workspace</span>
+    <button class="accounts-button" id="open-accounts">Accounts</button>
   </header>
   <main>
     <div class="calendar-toolbar">
-      <div><p class="eyebrow">YOUR CONTENT, IN VIEW</p><h1 id="month-title"></h1></div>
-      <div class="calendar-controls"><span class="draft-count" id="draft-count">0 drafts this month</span><button class="today-button" id="today">Today</button><div class="month-nav"><button class="icon-button" id="previous" aria-label="Previous month">‹</button><button class="icon-button" id="next" aria-label="Next month">›</button></div></div>
+      <h1 id="month-title"></h1>
+      <div class="calendar-controls">
+        <button class="today-button" id="today">Today</button>
+        <div class="month-nav"><button class="icon-button" id="previous" aria-label="Previous week">‹</button><button class="icon-button" id="next" aria-label="Next week">›</button></div>
+        <div class="view-switch" role="group" aria-label="Calendar view"><button id="view-week" aria-pressed="true">Week</button><button id="view-month" aria-pressed="false">Month</button></div>
+      </div>
     </div>
     <section class="calendar" aria-labelledby="month-title">
-      <div class="weekdays" aria-hidden="true"><span>MON</span><span>TUE</span><span>WED</span><span>THU</span><span>FRI</span><span>SAT</span><span>SUN</span></div>
-      <div class="calendar-grid" id="calendar-grid"></div>
+      <div id="week-view"><div class="week-heading" id="week-heading"></div><div class="week-scroll" id="week-scroll"><div class="week-grid" id="week-grid"></div></div></div>
+      <div id="month-view" hidden><div class="weekdays" aria-hidden="true"><span>MON</span><span>TUE</span><span>WED</span><span>THU</span><span>FRI</span><span>SAT</span><span>SUN</span></div><div class="calendar-grid" id="calendar-grid"></div></div>
     </section>
-    <footer class="calendar-footer"><span><span class="legend-dot"></span>Local drafts</span><span class="footer-hint">Add a video with <strong>+</strong></span><span id="timezone"></span></footer>
   </main>
-  <button class="add-button" id="add-post" aria-label="Add a video post" title="Add a video post"><span aria-hidden="true">+</span></button>
+  <button class="add-button" id="add-post" aria-label="Add a video post" title="Add a video post"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M4 12h16"/></svg></button>
+  <dialog id="accounts" aria-labelledby="accounts-title">
+    <div class="accounts-header"><h2 id="accounts-title">Accounts</h2><button class="close-button" id="close-accounts" aria-label="Close accounts">×</button></div>
+    <p class="accounts-note">Connections aren’t enabled in this preview.</p>
+    <div class="account-row"><div><strong>YouTube</strong><span>Not connected</span></div><button disabled>Connect</button></div>
+    <div class="account-row"><div><strong>TikTok</strong><span>Not connected</span></div><button disabled>Connect</button></div>
+    <div class="account-row"><div><strong>Instagram</strong><span>Not connected</span></div><button disabled>Connect</button></div>
+  </dialog>
   <div class="toast" id="toast" role="status" hidden></div>
 
   <dialog id="composer" aria-labelledby="composer-title">
     <form id="post-form">
-      <div class="composer-header"><div><p class="eyebrow">MAKE ROOM FOR AN IDEA</p><h2 id="composer-title">New post<span>.</span></h2></div><button class="close-button" id="close-composer" type="button" aria-label="Close editor">×</button></div>
+      <div class="composer-header"><div><h2 id="composer-title">New post<span>.</span></h2></div><button class="close-button" id="close-composer" type="button" aria-label="Close editor">×</button></div>
       <div class="composer-body">
         <div class="media-column">
           <div id="drop-zone" class="drop-zone">

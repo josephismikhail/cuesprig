@@ -1,6 +1,6 @@
 # Cuesprig — local calendar UI
 
-A dependency-free, local prototype: a monthly calendar, a large add button, video drag-and-drop and preview, a YouTube title, and a description shared across platforms. Choose a date and time to save a local draft. Click a draft to edit it.
+A dependency-free, local prototype: a weekly calendar with a month view switch, a large add button, video drag-and-drop and preview, a YouTube title, and a description shared across platforms. Choose a date and time to save a local draft. Click a time slot to start a post, or a draft to edit it. The Accounts panel sketches future connections; its Connect buttons are disabled in this preview.
 
 ## Run
 
