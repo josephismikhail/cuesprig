@@ -48,8 +48,9 @@ function renderBrands() {
   $('accounts-brand-name').textContent = brand.name;
   renderAvatar($('active-avatar'), brand);
   renderAvatar($('accounts-avatar'), brand);
-  $('brand-list').replaceChildren();
-  for (const item of brands) {
+  for (const listId of ['brand-list', 'account-brand-list']) {
+    $(listId).replaceChildren();
+    for (const item of brands) {
     const button = document.createElement('button'); button.className = 'brand-option';
     button.setAttribute('aria-pressed', String(item.id === activeBrandId));
     const avatar = document.createElement('span'); avatar.className = 'avatar'; avatar.setAttribute('aria-hidden', 'true');
@@ -63,12 +64,43 @@ function renderBrands() {
       try {
         await selectBrand(item.id); activeBrandId = item.id;
         renderBrands(); renderCalendar(); $('brand-menu').hidePopover();
+        closeBrandOptions();
+        if (listId === 'account-brand-list') $('brand-options-toggle').focus();
       } catch { showToast('Could not switch brands. Please try again.'); }
       finally { brandBusy = false; }
     });
-    $('brand-list').append(button);
+      $(listId).append(button);
+    }
   }
 }
+
+function closeBrandOptions() {
+  $('account-brand-menu').hidden = true;
+  $('brand-options-toggle').setAttribute('aria-expanded', 'false');
+}
+
+$('brand-options-toggle').addEventListener('click', () => {
+  const opening = $('account-brand-menu').hidden;
+  $('account-brand-menu').hidden = !opening;
+  $('brand-options-toggle').setAttribute('aria-expanded', String(opening));
+  $('account-brand-actions').hidden = false;
+  $('account-brand-picker').hidden = true;
+  if (opening) $('switch-brand-from-accounts').focus();
+});
+$('switch-brand-from-accounts').addEventListener('click', () => {
+  $('account-brand-actions').hidden = true;
+  $('account-brand-picker').hidden = false;
+  $('account-brand-list').querySelector('button')?.focus();
+});
+document.addEventListener('click', event => {
+  if (!$('account-brand-options').contains(event.target)) closeBrandOptions();
+});
+$('accounts').addEventListener('keydown', event => {
+  if (event.key === 'Escape' && !$('account-brand-menu').hidden) {
+    event.preventDefault(); event.stopPropagation(); closeBrandOptions(); $('brand-options-toggle').focus();
+  }
+});
+$('accounts').addEventListener('close', closeBrandOptions);
 
 function openBrandEditor(brand = null, fromAccounts = false) {
   if (brandBusy) return;

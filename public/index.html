@@ -41,7 +41,15 @@
   <button class="add-button" id="add-post" aria-label="Add a video post" title="Add a video post"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M4 12h16"/></svg></button>
   <dialog id="accounts" aria-labelledby="accounts-title">
     <div class="accounts-header"><h2 id="accounts-title">Accounts</h2><button class="close-button" id="close-accounts" aria-label="Close accounts">×</button></div>
-    <div class="account-brand"><span class="avatar" id="accounts-avatar" aria-hidden="true"></span><strong id="accounts-brand-name"></strong><button id="edit-brand-from-accounts">Edit brand</button></div>
+    <div class="account-brand"><span class="avatar" id="accounts-avatar" aria-hidden="true"></span><strong id="accounts-brand-name"></strong>
+      <div class="account-brand-options" id="account-brand-options">
+        <button id="brand-options-toggle" aria-label="Brand options" aria-expanded="false" aria-controls="account-brand-menu"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button>
+        <div class="account-brand-menu" id="account-brand-menu" hidden>
+          <div id="account-brand-actions"><button id="switch-brand-from-accounts">Switch brand</button><button id="edit-brand-from-accounts">Edit brand</button></div>
+          <div id="account-brand-picker" hidden><p class="menu-label">Switch brand</p><div id="account-brand-list"></div></div>
+        </div>
+      </div>
+    </div>
     <p class="accounts-note">Connections aren’t enabled in this preview.</p>
     <div class="account-row"><div class="platform-account"><img class="platform-logo" src="/youtube.svg" alt="" width="30" height="30"><div><strong>YouTube</strong><span>Not connected</span></div></div><button disabled>Connect</button></div>
     <div class="account-row"><div class="platform-account"><img class="platform-logo" src="/tiktok.svg" alt="" width="30" height="30"><div><strong>TikTok</strong><span>Not connected</span></div></div><button disabled>Connect</button></div>
