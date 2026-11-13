@@ -3,18 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f8f9f5">
-  <meta name="description" content="A quiet place to plan your next video.">
-  <title>Frame — Your content calendar</title>
-  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <meta name="theme-color" content="#FAF5F9">
+  <meta name="description" content="Good content. Right on time.">
+  <title>Cuesprig — Your content calendar</title>
+  <link rel="icon" href="/icon.svg?v=2" type="image/svg+xml">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/styles.css">
   <script type="module" src="/app.js"></script>
 </head>
 <body>
   <header class="topbar">
-    <a class="brand" href="/" aria-label="Frame home"><span class="brand-mark" aria-hidden="true"><i></i><i></i></span>frame<span class="brand-period">.</span></a>
-    <span class="topbar-caption">A little space for your next big idea.</span>
+    <a class="brand" href="/" aria-label="Cuesprig home"><img class="brand-mark" src="/brand-mark.svg" alt="" width="40" height="44">cuesprig</a>
+    <span class="topbar-caption">Good content. Right on time.</span>
     <span class="local-badge"><span></span>Local workspace</span>
   </header>
   <main>
@@ -26,7 +26,7 @@
       <div class="weekdays" aria-hidden="true"><span>MON</span><span>TUE</span><span>WED</span><span>THU</span><span>FRI</span><span>SAT</span><span>SUN</span></div>
       <div class="calendar-grid" id="calendar-grid"></div>
     </section>
-    <footer class="calendar-footer"><span><span class="legend-dot"></span>Local drafts</span><span class="footer-hint">Your next post starts with a <strong>+</strong></span><span id="timezone"></span></footer>
+    <footer class="calendar-footer"><span><span class="legend-dot"></span>Local drafts</span><span class="footer-hint">Add a video with <strong>+</strong></span><span id="timezone"></span></footer>
   </main>
   <button class="add-button" id="add-post" aria-label="Add a video post" title="Add a video post"><span aria-hidden="true">+</span></button>
   <div class="toast" id="toast" role="status" hidden></div>

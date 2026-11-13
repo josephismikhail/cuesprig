@@ -16,4 +16,4 @@ http.createServer(async (request, response) => {
     response.writeHead(200, { 'Content-Type': types[path.extname(filename)] || 'application/octet-stream', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
     response.end(request.method === 'HEAD' ? undefined : body);
   } catch { response.writeHead(404).end('Not found'); }
-}).listen(port, '127.0.0.1', () => console.log(`Frame is ready at http://127.0.0.1:${port}`));
+}).listen(port, '127.0.0.1', () => console.log(`Cuesprig is ready at http://127.0.0.1:${port}`));

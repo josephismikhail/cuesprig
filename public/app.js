@@ -21,6 +21,7 @@ function showToast(message) {
 
 function openDatabase() {
   return new Promise((resolve, reject) => {
+    // Stable storage ID: preserve drafts created before the Cuesprig rebrand.
     const request = indexedDB.open('frame-local-calendar', 1);
     request.onupgradeneeded = () => request.result.createObjectStore('posts', { keyPath: 'id' });
     request.onsuccess = () => resolve(request.result);
