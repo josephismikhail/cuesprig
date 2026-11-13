@@ -1,5 +1,5 @@
 import { readWorkspace } from './app/storage.js';
-import { platforms, isTransferTab, initializeVideoTransfer, fillTextFields } from './platforms.js';
+import { platforms, isTransferTab, initializeVideoTransfer, receiveVideoChunk, finishVideoTransfer, fillTextFields } from './platforms.js';
 
 const status = document.getElementById('status');
 let pending;
@@ -56,21 +56,13 @@ document.getElementById('upload-video').addEventListener('click', () => onPlatfo
     for (let offset = 0; offset < post.video.size; offset += chunkSize) {
       const bytes = new Uint8Array(await post.video.slice(offset, offset + chunkSize).arrayBuffer());
       let binary = ''; for (const byte of bytes) binary += String.fromCharCode(byte);
-      await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: chunk => {
-        if (!globalThis.cuesprigUpload?.input.isConnected) throw new Error('Upload dialog changed. Try again.');
-        globalThis.cuesprigUpload.chunks.push(Uint8Array.from(atob(chunk), character => character.charCodeAt(0)));
-      }, args: [btoa(binary)] });
+      await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: receiveVideoChunk, args: [btoa(binary)] });
       status.textContent = `Preparing video ${Math.min(100, Math.round((offset + chunkSize) / post.video.size * 100))}%`;
     }
-    await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: metadata => {
-      const upload = globalThis.cuesprigUpload;
-      if (!upload?.input.isConnected) throw new Error('Upload dialog closed. Try again.');
-      const transfer = new DataTransfer();
-      transfer.items.add(new File(upload.chunks, metadata.name, { type: metadata.type }));
-      upload.input.files = transfer.files;
-      delete globalThis.cuesprigUpload;
-      upload.input.dispatchEvent(new Event('change', { bubbles: true }));
-    }, args: [{ name: post.video.name || 'video.mp4', type: post.video.type || 'video/mp4' }] });
+    await chrome.scripting.executeScript({
+      target: { tabId: tab.id }, func: finishVideoTransfer,
+      args: [{ name: post.video.name || 'video.mp4', type: post.video.type || 'video/mp4' }],
+    });
     status.textContent = 'Video handed to the platform. Wait for its upload to finish, then review the account and schedule.';
   } catch (error) {
     await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: () => { delete globalThis.cuesprigUpload; } }).catch(() => {});

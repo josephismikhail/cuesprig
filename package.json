@@ -9,6 +9,10 @@
     "check": "node scripts/check.mjs",
     "build": "node scripts/build.mjs",
     "test": "npm run build && node --test tests/*.test.mjs",
-    "sync": "node sync/server.mjs"
+    "sync": "node sync/server.mjs",
+    "test:browser": "npm run build && node --test tests/*.browser.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.65.0"
   }
 }
