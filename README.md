@@ -25,7 +25,7 @@ Use Node.js 20 or later. Download or clone the repository, run `npm run build` i
 5. After the platform processes the upload, click Cuesprig again and choose **Fill title and description**. Copy buttons provide a fallback if the platform’s editor has changed.
 6. Review the content, account, date, time, and time zone in the platform. Complete scheduling there and wait for its confirmation before closing it.
 
-The companion uses Chrome’s temporary access to the tab where you click it. Upload and text controls are experimental and require verification against the live platform editors. Once the platform confirms, return to the card and choose **Record schedule**. Pick the platform and enter the confirmed date and time. Matching times share a card, and different times appear separately. Cuesprig labels this as a schedule you recorded. Use **Remove record** if you cancel it on the platform.
+The companion uses Chrome’s temporary access to the tab where you click it. Upload and text controls are experimental and require verification against the live platform editors. Once the platform confirms, choose **Record confirmed schedule** in the Cuesprig toolbar popup. You can also open the calendar card and choose **Record schedule**. Pick the platform and enter the confirmed date and time. Matching times share a card, and different times appear separately. Cuesprig labels this as a schedule you recorded. Use **Remove record** if you cancel it on the platform.
 
 ## Calendar
 

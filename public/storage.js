@@ -59,6 +59,29 @@ async function write(stores, update) {
 }
 
 export const storePost = post => write(['posts'], transaction => transaction.objectStore('posts').put(post));
+export async function updatePost(id, update) {
+  const db = await database();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction('posts', 'readwrite');
+    const store = transaction.objectStore('posts');
+    const request = store.get(id);
+    let updated;
+    let failure;
+    request.onsuccess = () => {
+      try {
+        if (!request.result) throw new Error('This video is no longer in your calendar.');
+        updated = update(request.result);
+        store.put(updated);
+      } catch (error) {
+        failure = error;
+        transaction.abort();
+      }
+    };
+    transaction.oncomplete = () => resolve(updated);
+    transaction.onabort = () => reject(failure ?? transaction.error);
+  });
+}
+
 export const selectBrand = id => write(['settings'], transaction => transaction.objectStore('settings').put({ id: 'activeBrand', value: id }));
 export const storeBrand = brand => write(['brands', 'settings'], transaction => {
   transaction.objectStore('brands').put(brand);
