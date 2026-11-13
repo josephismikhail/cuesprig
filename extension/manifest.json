@@ -3,6 +3,9 @@
   "name": "Cuesprig",
   "version": "0.2.0",
   "description": "A private local content calendar with a browser scheduling companion.",
+  "icons": {
+    "128": "icon-128.png"
+  },
   "action": {
     "default_title": "Open Cuesprig",
     "default_popup": "popup.html"
