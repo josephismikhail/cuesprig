@@ -152,7 +152,7 @@ test('upload helpers attach intact bytes and fill the editor without submitting'
   assert.equal(await page.locator('body').getAttribute('data-submitted'), null);
 });
 
-test('the extension popup transfers a saved video to its prepared editor tab', { timeout: 30000 }, async () => {
+test('background send transfers a video while the calendar stays active', { timeout: 30000 }, async () => {
   const directory = await mkdtemp(join(tmpdir(), 'cuesprig-popup-test-'));
   let context;
   try {
@@ -174,23 +174,31 @@ test('the extension popup transfers a saved video to its prepared editor tab', {
       contentType: 'text/html',
       body: '<input type="file" accept="video/*"><div id="title-textarea"><div id="textbox" contenteditable="true"></div></div>',
     }));
-    const editor = await context.newPage();
-    await editor.goto(editorUrl);
     const popup = await context.newPage();
     await popup.goto(new URL('app/index.html', origin).href);
     await popup.evaluate(async () => {
       const { storePost } = await import('/app/storage.js');
+      const now = new Date();
+      const date = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-');
       await storePost({
         id: 'fixture', brandId: 'default', title: 'Fixture title', description: 'Fixture caption',
-        date: '2099-01-01', time: '13:00',
+        date, time: '13:00',
         video: new File([new Uint8Array(300000).fill(42)], 'fixture.mp4', { type: 'video/mp4' }),
       });
     });
+    await popup.reload();
+    await popup.getByRole('button', { name: /^Fixture title,.*draft/i }).click();
+    await popup.bringToFront();
+    await popup.getByRole('button', { name: 'Send to YouTube', exact: true }).click();
+    await popup.getByText(/Video handed to YouTube/).waitFor({ timeout: 20000 }).catch(async error => { throw new Error(await popup.getByRole("status").allTextContents().then(items => items.join(" | ")), { cause: error }); });
     const [tab] = await worker.evaluate(async () => chrome.tabs.query({ url: 'https://studio.youtube.com/*' }));
     assert.ok(tab);
-    await worker.evaluate(async id => chrome.storage.session.set({
-      [`handoff:${id}`]: { id: 'fixture', platform: 'youtube', tabId: id },
-    }), tab.id);
+    assert.equal(tab.active, false);
+    assert.equal(await worker.evaluate(async () => (await chrome.tabs.query({ active: true, currentWindow: true }))[0].url.endsWith('/app/index.html')), true);
+    const editor = context.pages().find(page => page.url() === editorUrl);
+    assert.ok(editor);
+    assert.equal(await editor.locator('input[type=file]').evaluate(input => input.files[0].size), 300000);
+    assert.equal(await editor.locator('#textbox').textContent(), 'Fixture title');
     // The toolbar popup is not a browser tab. Emulate its active-tab query while
     // loading it in a regular test page, and leave scripting and storage intact.
     await popup.addInitScript(activeTab => {
