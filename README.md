@@ -12,7 +12,9 @@ Paste this into PowerShell:
 & ([scriptblock]::Create((Invoke-RestMethod 'https://raw.githubusercontent.com/josephismikhail/cuesprig/main/install.ps1')))
 ```
 
-The [installer](install.ps1) downloads and verifies the latest release, saves it in a stable folder, copies that folder’s path, and opens Chrome. For the first install, turn on **Developer mode**, click **Load unpacked**, then paste the copied path into the folder picker’s address bar and select that folder. Cuesprig opens its welcome screen.
+Choose the Chrome profile you want in the setup window and click **Continue**. The [installer](install.ps1) downloads and verifies the latest release, copies its folder path, and opens Extensions in the profile you chose. No Node.js or admin access is needed.
+
+The first time, Chrome requires **Developer mode → Load unpacked**. Paste the copied path into the folder picker’s address bar and select that folder. Cuesprig opens its welcome screen.
 
 To update, run the same command and click **Reload** on the Cuesprig card in Chrome.
 

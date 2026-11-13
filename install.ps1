@@ -2,10 +2,54 @@
 param(
     [string]$ArchivePath,
     [string]$InstallDirectory = (Join-Path $env:LOCALAPPDATA 'Cuesprig\extension'),
+    [string]$ChromeProfile,
     [switch]$NoLaunch
 )
 
 $ErrorActionPreference = 'Stop'
+
+function Select-ChromeProfile {
+    param([object[]]$Profiles)
+    Add-Type -AssemblyName System.Windows.Forms
+    $form = New-Object Windows.Forms.Form
+    $form.Text = 'Set up Cuesprig'
+    $form.ClientSize = New-Object Drawing.Size(400, 158)
+    $form.StartPosition = 'CenterScreen'
+    $form.FormBorderStyle = 'FixedDialog'
+    $form.MaximizeBox = $false
+    $form.MinimizeBox = $false
+    $form.TopMost = $true
+    $form.AutoScaleMode = 'Dpi'
+
+    $label = New-Object Windows.Forms.Label
+    $label.Text = 'Choose the Chrome profile for Cuesprig.'
+    $label.SetBounds(16, 18, 368, 24)
+    $picker = New-Object Windows.Forms.ComboBox
+    $picker.DropDownStyle = 'DropDownList'
+    $picker.DisplayMember = 'Label'
+    $picker.SetBounds(16, 54, 368, 28)
+    foreach ($profile in $Profiles) { [void]$picker.Items.Add($profile) }
+
+    $continue = New-Object Windows.Forms.Button
+    $continue.Text = 'Continue'
+    $continue.SetBounds(288, 108, 96, 32)
+    $continue.DialogResult = 'OK'
+    $continue.Enabled = $false
+    $picker.Add_SelectedIndexChanged({ $continue.Enabled = $picker.SelectedIndex -ge 0 })
+    $cancel = New-Object Windows.Forms.Button
+    $cancel.Text = 'Cancel'
+    $cancel.SetBounds(184, 108, 96, 32)
+    $cancel.DialogResult = 'Cancel'
+    $form.AcceptButton = $continue
+    $form.CancelButton = $cancel
+    $form.Controls.AddRange(@($label, $picker, $continue, $cancel))
+    try {
+        if ($form.ShowDialog() -eq 'OK' -and $picker.SelectedItem) {
+            return $picker.SelectedItem.Directory
+        }
+    } finally { $form.Dispose() }
+}
+
 $version = $null
 $chrome = $null
 if (-not $NoLaunch) {
@@ -15,6 +59,26 @@ if (-not $NoLaunch) {
         Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } |
         Select-Object -First 1
     if (-not $chrome) { throw 'Install Google Chrome, then run this command again.' }
+
+    $chromeData = Join-Path $env:LOCALAPPDATA 'Google\Chrome\User Data'
+    $state = Join-Path $chromeData 'Local State'
+    if (-not (Test-Path -LiteralPath $state -PathType Leaf)) {
+        throw 'Open Chrome and create a profile, then run setup again.'
+    }
+    $profiles = @((Get-Content -LiteralPath $state -Raw | ConvertFrom-Json).profile.info_cache.PSObject.Properties |
+        Where-Object { $_.Name -match '^(Default|Profile [0-9]+)$' } |
+        ForEach-Object {
+            [pscustomobject]@{ Directory = $_.Name; Name = [string]$_.Value.name; Label = "$($_.Value.name) ($($_.Name))" }
+        } | Sort-Object Name, Directory)
+    if (-not $profiles.Count) { throw 'No Chrome profiles found. Open Chrome and set up a profile first.' }
+    if ($ChromeProfile) {
+        $matchesForProfile = @($profiles | Where-Object { $_.Directory -eq $ChromeProfile -or $_.Name -eq $ChromeProfile })
+        if ($matchesForProfile.Count -ne 1) { throw 'That Chrome profile is missing or ambiguous. Run setup without a profile name to choose one.' }
+        $profileDirectory = $matchesForProfile[0].Directory
+    } else {
+        $profileDirectory = Select-ChromeProfile -Profiles $profiles
+        if (-not $profileDirectory) { Write-Host 'Cuesprig setup canceled.'; return }
+    }
 }
 
 $destination = [IO.Path]::GetFullPath($InstallDirectory)
@@ -84,7 +148,7 @@ Write-Host "Cuesprig $($manifest.version) is ready at $destination"
 if (-not $NoLaunch) {
     try { Set-Clipboard -Value $destination }
     catch { Write-Host "Copy this folder path: $destination" }
-    Start-Process -FilePath $chrome -ArgumentList 'chrome://extensions'
+    Start-Process -FilePath $chrome -ArgumentList "--profile-directory=`"$profileDirectory`" chrome://extensions"
     if ($updating) {
         Write-Host 'If Cuesprig is already loaded from this folder, click Reload on its card.'
     }
