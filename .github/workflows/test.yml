@@ -19,3 +19,16 @@ jobs:
         with:
           name: cuesprig-chrome-extension
           path: dist/cuesprig/
+  windows-installer:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm run build
+      - run: python scripts/package-extension.py
+      - shell: powershell
+        run: |
+          $archive = (Get-ChildItem -LiteralPath dist -Filter 'cuesprig-chrome-*.zip').FullName
+          ./tests/install.test.ps1 -ArchivePath $archive
