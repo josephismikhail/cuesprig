@@ -15,7 +15,14 @@
   <header class="topbar">
     <a class="brand" href="/" aria-label="Cuesprig home"><img class="brand-mark" src="/brand-mark.svg" alt="" width="40" height="44">cuesprig</a>
     <span class="topbar-caption">Good content. Right on time.</span>
-    <button class="accounts-button" id="open-accounts">Accounts</button>
+    <div class="workspace-actions">
+      <button class="accounts-button" id="open-accounts" disabled>Accounts</button>
+      <button class="brand-switcher" id="brand-switcher" popovertarget="brand-menu" aria-label="Switch brand" disabled><span class="avatar" id="active-avatar" aria-hidden="true"></span><span id="active-brand-name">My brand</span><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button>
+    </div>
+    <div id="brand-menu" popover>
+      <p class="menu-label">Your brands</p><div id="brand-list"></div>
+      <div class="brand-menu-footer"><button id="edit-active-brand">Edit brand</button><button id="add-brand">+ Add brand</button></div>
+    </div>
   </header>
   <main>
     <div class="calendar-toolbar">
@@ -34,16 +41,27 @@
   <button class="add-button" id="add-post" aria-label="Add a video post" title="Add a video post"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M4 12h16"/></svg></button>
   <dialog id="accounts" aria-labelledby="accounts-title">
     <div class="accounts-header"><h2 id="accounts-title">Accounts</h2><button class="close-button" id="close-accounts" aria-label="Close accounts">×</button></div>
+    <div class="account-brand"><span class="avatar" id="accounts-avatar" aria-hidden="true"></span><strong id="accounts-brand-name"></strong><button id="edit-brand-from-accounts">Edit brand</button></div>
     <p class="accounts-note">Connections aren’t enabled in this preview.</p>
-    <div class="account-row"><div><strong>YouTube</strong><span>Not connected</span></div><button disabled>Connect</button></div>
-    <div class="account-row"><div><strong>TikTok</strong><span>Not connected</span></div><button disabled>Connect</button></div>
-    <div class="account-row"><div><strong>Instagram</strong><span>Not connected</span></div><button disabled>Connect</button></div>
+    <div class="account-row"><div class="platform-account"><img class="platform-logo" src="/youtube.svg" alt="" width="30" height="30"><div><strong>YouTube</strong><span>Not connected</span></div></div><button disabled>Connect</button></div>
+    <div class="account-row"><div class="platform-account"><img class="platform-logo" src="/tiktok.svg" alt="" width="30" height="30"><div><strong>TikTok</strong><span>Not connected</span></div></div><button disabled>Connect</button></div>
+    <div class="account-row"><div class="platform-account"><img class="platform-logo" src="/instagram.svg" alt="" width="30" height="30"><div><strong>Instagram</strong><span>Not connected</span></div></div><button disabled>Connect</button></div>
+  </dialog>
+  <dialog id="brand-editor" aria-labelledby="brand-editor-title">
+    <form id="brand-form">
+      <div class="accounts-header"><h2 id="brand-editor-title">Edit brand</h2><button class="close-button" id="close-brand-editor" type="button" aria-label="Close brand editor">×</button></div>
+      <div class="brand-picture-row"><span class="avatar avatar-large" id="brand-picture-preview" aria-hidden="true"></span><div><button type="button" id="upload-brand-picture" class="picture-button">Upload picture</button><button type="button" id="remove-brand-picture" class="text-button" hidden>Remove picture</button><input type="file" id="brand-picture-file" accept="image/png,image/jpeg,image/webp,image/gif" hidden></div></div>
+      <div class="field"><label for="brand-name">Brand name</label><input id="brand-name" maxlength="40" autocomplete="off" placeholder="Name your brand" required></div>
+      <div class="profile-picture-option"><button type="button" disabled>Use a connected profile picture</button><p>Available after connecting a social account.</p></div>
+      <p class="form-error" id="brand-error" role="alert" hidden></p>
+      <div class="brand-editor-footer"><button class="cancel-button" type="button" id="cancel-brand-editor">Cancel</button><button class="save-button" id="save-brand" type="submit">Save brand</button></div>
+    </form>
   </dialog>
   <div class="toast" id="toast" role="status" hidden></div>
 
   <dialog id="composer" aria-labelledby="composer-title">
     <form id="post-form">
-      <div class="composer-header"><div><h2 id="composer-title">New post<span>.</span></h2></div><button class="close-button" id="close-composer" type="button" aria-label="Close editor">×</button></div>
+      <div class="composer-header"><div><h2 id="composer-title">New post<span>.</span></h2><span class="composer-brand" id="composer-brand"></span></div><button class="close-button" id="close-composer" type="button" aria-label="Close editor">×</button></div>
       <div class="composer-body">
         <div class="media-column">
           <div id="drop-zone" class="drop-zone">

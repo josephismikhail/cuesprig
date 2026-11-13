@@ -430,6 +430,40 @@ textarea {
 .account-row span { font-size: 12px; color: var(--muted); margin-top: 5px; }
 .account-row button { font-size: 12px; padding: 8px 13px; border-radius: 7px; border: 1px solid var(--border); background: #f5eff8; }
 .account-row button:disabled { cursor: default; color: #9d8da5; }
+.workspace-actions { margin-left: auto; display: flex; align-items: center; gap: 14px; }
+.workspace-actions .accounts-button { margin: 0; }
+.avatar { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; border-radius: 50%; background: #e9def4; color: #624775; font-size: 11px; font-weight: 650; letter-spacing: .3px; }
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+.brand-switcher { display: flex; align-items: center; gap: 10px; padding: 7px 10px 7px 7px; border: 1px solid var(--border); border-radius: 28px; background: transparent; font-size: 14px; }
+#active-brand-name { max-width: 135px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.brand-switcher svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.4; margin-left: 4px; }
+#brand-menu { position: fixed; inset: 98px 4% auto auto; margin: 0; padding: 8px; width: 280px; max-height: calc(100dvh - 120px); overflow: auto; border: 1px solid var(--border); border-radius: 15px; color: var(--dark); background: white; box-shadow: 0 12px 40px #35243f18; }
+.menu-label { font-size: 11px; color: var(--muted); margin: 8px 10px 12px; }
+.brand-option { display: flex; align-items: center; text-align: left; gap: 11px; width: 100%; border: 0; background: transparent; padding: 9px; border-radius: 9px; }
+.brand-option[aria-pressed="true"] { background: #f6f0fa; }
+.brand-option-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+.brand-check { margin-left: auto; color: #9274b4; }
+.brand-menu-footer { display: flex; justify-content: space-between; border-top: 1px solid var(--border); padding: 8px 0 0; margin-top: 8px; }
+.brand-menu-footer button, .account-brand button, .text-button { border: 0; border-radius: 6px; padding: 9px; background: transparent; font-size: 12px; color: var(--muted); }
+.platform-account { display: flex; align-items: center; gap: 14px; }
+.platform-logo { object-fit: contain; flex-shrink: 0; }
+.account-brand { display: flex; align-items: center; gap: 11px; margin-top: 24px; }
+.account-brand strong { font-size: 15px; font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-brand button { margin-left: auto; flex-shrink: 0; }
+#brand-editor { width: min(460px, calc(100% - 32px)); padding: 28px; }
+.brand-picture-row { display: flex; align-items: center; gap: 20px; margin: 28px 0; }
+.avatar-large { width: 78px; height: 78px; font-size: 24px; }
+.picture-button { display: block; border: 1px solid var(--border); border-radius: 8px; background: white; padding: 10px 14px; font-size: 13px; }
+.brand-picture-row .text-button { padding: 9px 0 0; }
+.profile-picture-option { margin: 24px 0; }
+.profile-picture-option button { border: 0; padding: 0; background: transparent; color: #9d8da5; font-size: 12px; cursor: default; }
+.profile-picture-option p { margin: 5px 0 0; color: var(--muted); font-size: 11px; }
+.brand-editor-footer { display: flex; justify-content: flex-end; gap: 22px; margin-top: 26px; }
+.composer-brand { display: block; margin-top: 7px; font-size: 12px; color: var(--muted); }
+@media (min-width: 701px) and (max-width: 1100px) {
+  .topbar { flex-wrap: wrap; gap: 10px 24px; }
+  .topbar-caption { order: 3; width: 100%; padding-left: 76px; }
+}
 @media (max-width: 1000px) {
   .topbar { gap: 22px; }
   .brand { font-size: 42px; }
@@ -470,4 +504,10 @@ textarea {
   .composer-footer { padding: 18px 20px; flex-wrap: wrap; }
   .composer-footer > div { margin-left: auto; }
   .description-note { font-size: 9px; }
+  .topbar { display: grid; grid-template-columns: 1fr; gap: 10px; padding-bottom: 12px; }
+  .topbar-caption { position: static; }
+  .workspace-actions { margin-left: 0; justify-content: space-between; }
+  .workspace-actions .accounts-button { padding-left: 0; }
+  #brand-menu { top: 190px; }
+  .week-scroll { height: calc(100dvh - 420px); }
 }

@@ -22,6 +22,8 @@ This version is a UI prototype. It does not log in to social platforms, upload r
 
 Videos and metadata are stored in this browser's IndexedDB, outside the source repository. There are no analytics, third-party assets, or network uploads. Browser data clearing removes drafts; this prototype is not a backup. Storage is specific to the browser profile and origin, so keep the same local URL and port.
 
+Use the brand switcher beside Accounts to create, rename, or switch brands. Each brand has a separate calendar and an optional uploaded picture (PNG, JPG, WebP, or GIF, up to 5 MB). Brand names, pictures, and the selected brand stay in IndexedDB and are not written into this repository. Existing drafts migrate to the initial “My brand” workspace; renaming that brand preserves them. Close older calendar tabs before the first storage upgrade if prompted. Importing a social profile picture remains disabled until account connections are implemented.
+
 The web manifest provides standalone-window metadata; offline launch and the browser automation companion are future work.
 
 ## Public source hygiene
