@@ -1,17 +1,16 @@
+import { readHandoff } from './app/handoffs.js';
 import { readWorkspace } from './app/storage.js';
 import { platforms, isTransferTab, initializeVideoTransfer, receiveVideoChunk, finishVideoTransfer, fillTextFields } from './platforms.js';
 
 const status = document.getElementById('status');
-let pending;
 let post;
 const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-const state = await chrome.storage.local.get('pendingPost');
-pending = state.pendingPost;
-if (pending) {
+const pending = await readHandoff(chrome, tab?.id);
+if (pending && isTransferTab(pending, tab)) {
   const workspace = await readWorkspace();
   post = workspace.posts.find(item => item.id === pending.id);
 }
-if (post && platforms[pending.platform]) {
+if (post) {
   document.getElementById('transfer').hidden = false;
   document.getElementById('post-title').textContent = post.title;
   document.getElementById('post-schedule').textContent = `${platforms[pending.platform].name} · ${post.date} ${post.time}`;

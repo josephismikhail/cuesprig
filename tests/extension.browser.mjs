@@ -31,6 +31,29 @@ test('packaged extension saves a video and records a platform schedule in Chromi
   await page.getByRole('button', { name: 'Save schedule record' }).click();
   await page.getByRole('button', { name: /^Example clip,.*Instagram/ }).click();
   await page.getByText('Scheduled (recorded by you) · Instagram', { exact: true }).waitFor();
+  for (const [platform, url] of [['YouTube', 'https://studio.youtube.com/'], ['TikTok', 'https://www.tiktok.com/tiktokstudio/upload']]) {
+    await context.route(url, route => route.fulfill({ contentType: 'text/html', body: '<h1>Test upload editor</h1>' }));
+    const [editor] = await Promise.all([
+      context.waitForEvent('page'),
+      page.getByRole('button', { name: `Prepare for ${platform}` }).click(),
+    ]);
+    await editor.waitForURL(url);
+    await page.waitForFunction(async expected => Object.values(await chrome.storage.session.get())
+      .some(record => record.platform === expected), platform.toLowerCase());
+  }
+  const readHandoffs = () => worker.evaluate(async () => Object.entries(await chrome.storage.session.get())
+    .filter(([key]) => key.startsWith('handoff:')).map(([, handoff]) => handoff));
+  const handoffs = await readHandoffs();
+  assert.deepEqual(handoffs.map(handoff => handoff.platform).sort(), ['tiktok', 'youtube']);
+  assert.equal(new Set(handoffs.map(handoff => handoff.id)).size, 1);
+  const youtube = context.pages().find(tab => tab.url() === 'https://studio.youtube.com/');
+  assert.ok(youtube);
+  await youtube.close();
+  await page.waitForFunction(async () => {
+    const records = Object.values(await chrome.storage.session.get());
+    return !records.some(record => record.platform === 'youtube');
+  });
+  assert.deepEqual((await readHandoffs()).map(handoff => handoff.platform), ['tiktok']);
   await page.reload();
   await page.getByRole('button', { name: 'Next week' }).waitFor();
   const saved = await page.evaluate(async () => {

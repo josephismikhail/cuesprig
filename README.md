@@ -20,7 +20,7 @@ Use Node.js 20 or later. Download or clone the repository, run `npm run build` i
 
 1. Add a video, YouTube title, description, date, and time to your calendar.
 2. Open its card and choose **Prepare for YouTube**, **Prepare for Instagram**, or **Prepare for TikTok**.
-3. Sign in on the platform and verify the intended account. Open its upload editor.
+3. Use the tab Cuesprig opens. Each platform tab keeps its own handoff until you close it or restart Chrome. Sign in on the platform and verify the intended account. Open its upload editor.
 4. Click the pinned Cuesprig extension. Choose **Insert video** and keep the popup open until the handoff finishes.
 5. After the platform processes the upload, click Cuesprig again and choose **Fill title and description**. Copy buttons provide a fallback if the platform’s editor has changed.
 6. Review the content, account, date, time, and time zone in the platform. Complete scheduling there and wait for its confirmation before closing it.

@@ -1,3 +1,4 @@
+import { prepareHandoff } from './handoffs.js';
 import { readWorkspace, storePost, storeBrand, selectBrand } from './storage.js';
 
 import { platforms, calendarEntries, withSchedule, withoutSchedule } from './schedules.js';
@@ -227,9 +228,7 @@ function openDayPosts(date, selectedId = null) {
         const prepare = document.createElement('button'); prepare.className = 'today-button'; prepare.textContent = `Prepare for ${name}`;
         prepare.addEventListener('click', async () => {
           try {
-            const tab = await chrome.tabs.create({ url, active: false });
-            await chrome.storage.local.set({ pendingPost: { id: post.id, platform, tabId: tab.id } });
-            await chrome.tabs.update(tab.id, { active: true });
+            await prepareHandoff(chrome, post.id, platform, url);
           } catch { showToast('Could not open the platform. Try again.'); }
         });
         actions.append(prepare);
