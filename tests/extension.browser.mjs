@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
@@ -24,8 +25,13 @@ test('packaged extension saves a video and records a platform schedule in Chromi
   await page.getByLabel('Description', { exact: true }).fill('Example caption');
   await page.locator('#composer').getByLabel('Date', { exact: true }).fill('2027-01-20');
   await page.locator('#composer').getByLabel('Time', { exact: true }).fill('13:00');
-  await page.getByRole('button', { name: 'Add to calendar' }).click();
-  await page.getByRole('button', { name: /^Example clip,.*draft/i }).click();
+  await page.getByRole('button', { name: 'Save and prepare' }).click();
+  const [videoDownload] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Download video', exact: true }).click(),
+  ]);
+  assert.equal(videoDownload.suggestedFilename(), 'fixture.mp4');
+  assert.equal(await readFile(await videoDownload.path(), 'utf8'), 'test video bytes');
   await page.getByRole('button', { name: 'Record schedule' }).click();
   await page.getByLabel('Platform', { exact: true }).selectOption('instagram');
   await page.getByRole('button', { name: 'Save schedule record' }).click();
