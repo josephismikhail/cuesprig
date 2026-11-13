@@ -1,3 +1,5 @@
+import { stagedVideos } from './staged-videos.mjs';
+import { pipeline } from 'node:stream/promises';
 import { integrationStore, oauthAccess, handleMcp } from './chatgpt.mjs';
 import { createServer } from 'node:http';
 import { timingSafeEqual } from 'node:crypto';
@@ -41,7 +43,9 @@ export function calendarServer({ readToken, writeToken, filename, chatgpt }) {
     'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer',
     'Content-Security-Policy': "default-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'",
   };
-  const connector = chatgpt && integrationStore(chatgpt.filename ?? filename + '.chatgpt.json');
+  const videos = chatgpt?.attachmentOrigins?.length
+    ? stagedVideos(filename + '.videos', chatgpt.attachmentOrigins, chatgpt.fetchAttachment) : undefined;
+  const connector = chatgpt && integrationStore(chatgpt.filename ?? filename + '.chatgpt.json', videos);
   let writes = Promise.resolve();
   return createServer(async (request, response) => {
     const send = (code, body, type = 'application/json') => response.writeHead(code, { ...headers, 'Content-Type': `${type}; charset=utf-8` }).end(body);
@@ -63,6 +67,21 @@ export function calendarServer({ readToken, writeToken, filename, chatgpt }) {
       if (request.method !== 'POST') return send(405);
       try { await handleMcp(request, response, connector, scopes, await jsonBody(request)); }
       catch (error) { if (!response.headersSent) send(error.status ?? 400); }
+      return;
+    }
+    const videoId = videos && /^\/api\/chatgpt-video\/([a-f0-9-]{36})$/.exec(request.url)?.[1];
+    if (videoId) {
+      if (request.method !== 'GET') return send(405);
+      if (!authorized(request.headers.authorization, writeToken)) return send(401);
+      try {
+        const { changes } = await connector.read();
+        const media = changes.find(change => change.id === videoId && change.status === 'pending')?.media;
+        if (!media || media.expiresAt <= Date.now()) return send(404);
+        const info = await videos.stat(videoId);
+        if (info.size !== media.size) return send(409);
+        response.writeHead(200, { ...headers, 'Content-Type': media.type, 'Content-Length': media.size, 'Content-Disposition': 'attachment' });
+        await pipeline(videos.open(videoId), response);
+      } catch (error) { if (!response.headersSent) send(error.code === 'ENOENT' ? 404 : 500); }
       return;
     }
     if (connector && request.url === '/api/chatgpt-sync') {
@@ -124,7 +143,7 @@ if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) 
     throw new Error('Set the HTTPS OAuth issuer, MCP URL, JWKS URL, and allowed OAuth subject.');
   }
   calendarServer({
-    chatgpt: enabled ? { issuer, audience, authorize: oauthAccess({ issuer, audience, jwksUrl, subject }) } : undefined,
+    chatgpt: enabled ? { issuer, audience, attachmentOrigins: (process.env.CUESPRIG_ATTACHMENT_ORIGINS ?? '').split(',').map(value => value.trim()).filter(Boolean), authorize: oauthAccess({ issuer, audience, jwksUrl, subject }) } : undefined,
     readToken: process.env.CUESPRIG_READ_TOKEN,
     writeToken: process.env.CUESPRIG_WRITE_TOKEN,
     filename: resolve(process.env.CUESPRIG_SYNC_FILE || '.local/calendar.json'),

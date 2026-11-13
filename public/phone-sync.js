@@ -19,7 +19,25 @@ function sync() {
       const remote = await request('/api/chatgpt-sync', 'GET');
       if (!remote.ok) throw new Error(`ChatGPT sync failed (${remote.status}). Check your server setup.`);
       const { changes } = await remote.json();
-      const results = await applyRemoteChanges(changes, phoneSync.origin);
+      const results = await applyRemoteChanges(changes, phoneSync.origin, async ({ id, media }) => {
+        if (!/^[a-f0-9-]{36}$/.test(id) || !Number.isSafeInteger(media.size) ||
+            media.size < 1 || media.size > 100 * 1024 * 1024 ||
+            !['video/mp4', 'video/quicktime', 'video/webm'].includes(media.type)) {
+          throw new Error('Invalid video import metadata.');
+        }
+        const response = await fetch(`${phoneSync.origin}/api/chatgpt-video/${id}`, {
+          redirect: 'error', signal: AbortSignal.timeout(90000),
+          headers: { Authorization: `Bearer ${phoneSync.token}` },
+        });
+        if (!response.ok) throw new Error(`Could not download the queued video (${response.status}).`);
+        if (Number(response.headers.get('content-length')) !== media.size) {
+          await response.body?.cancel();
+          throw new Error('The imported video size did not match.');
+        }
+        const blob = await response.blob();
+        if (blob.size !== media.size) throw new Error('The imported video size did not match.');
+        return new File([blob], media.name, { type: media.type });
+      });
       const { posts, brands } = await readWorkspace();
       if (results.some(result => result.status === 'applied')) window.dispatchEvent(new Event('cuesprig:calendar-imported'));
       const workspace = {
@@ -91,4 +109,14 @@ if (globalThis.chrome?.runtime?.id) {
     finally { busy = false; }
   });
   window.addEventListener('cuesprig:schedules-changed', sync);
+  let lastOpenedSync = 0;
+  async function syncOnOpen() {
+    if (document.visibilityState !== 'visible' || Date.now() - lastOpenedSync < 5000) return;
+    lastOpenedSync = Date.now();
+    const { phoneSync } = await chrome.storage.local.get('phoneSync');
+    if (phoneSync?.chatgpt) await sync();
+  }
+  const checkForImports = () => syncOnOpen().catch(error => status(error.message));
+  document.addEventListener('visibilitychange', checkForImports);
+  checkForImports();
 }

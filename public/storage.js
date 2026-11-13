@@ -101,15 +101,26 @@ export const restoreWorkspace = workspace => write(['posts', 'brands', 'settings
   transaction.objectStore('settings').put({ id: 'activeBrand', value: workspace.activeBrandId });
 });
 
-export async function applyRemoteChanges(changes, serverOrigin) {
+export async function applyRemoteChanges(changes, serverOrigin, downloadVideo) {
   const results = [];
   for (const change of changes) {
     const db = await database();
+    const key = `${serverOrigin}/${change.id}`;
+    const saved = await new Promise((resolve, reject) => {
+      const request = db.transaction('calendarReceipts').objectStore('calendarReceipts').get(key);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    if (saved) { results.push(saved.outcome); continue; }
+    let video;
+    if (change.media && change.media.expiresAt > Date.now()) {
+      if (!downloadVideo) throw new Error('Video import is unavailable.');
+      video = await downloadVideo(change);
+    }
     const result = await new Promise((resolve, reject) => {
       const transaction = db.transaction(['posts', 'brands', 'calendarReceipts'], 'readwrite');
       const posts = transaction.objectStore('posts');
       const receipts = transaction.objectStore('calendarReceipts');
-      const key = `${serverOrigin}/${change.id}`;
       const prior = receipts.get(key);
       const post = posts.get(change.postId);
       const brands = transaction.objectStore('brands').getAll();
@@ -117,8 +128,9 @@ export async function applyRemoteChanges(changes, serverOrigin) {
       brands.onsuccess = () => {
         if (prior.result) { outcome = prior.result.outcome; return; }
         try {
+          if (change.media && !video) throw new Error('Video expired. Attach it again in ChatGPT.');
           const updated = applyCalendarChange(post.result, change, brands.result);
-          posts.put(updated);
+          posts.put(video ? { ...updated, video } : updated);
           outcome = { id: change.id, status: 'applied' };
         } catch (error) {
           outcome = { id: change.id, status: 'rejected', reason: error.message };

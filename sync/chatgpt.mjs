@@ -18,12 +18,13 @@ const post = z.object({
   schedules: z.partialRecord(platform, z.object({ date, time })),
 });
 const workspace = z.object({
+  timeZone: z.string().max(100).default('UTC'),
   brands: z.array(z.object({ id, name: z.string().trim().min(1).max(40) })).max(1000),
   posts: z.array(post).max(10000),
 });
 const receipt = z.object({ id, status: z.enum(['applied', 'rejected']), reason: z.string().max(500).optional() });
 
-export function integrationStore(filename) {
+export function integrationStore(filename, videos) {
   let queue = Promise.resolve();
   const load = async () => {
     try { return JSON.parse(await readFile(filename, 'utf8')); }
@@ -43,10 +44,10 @@ export function integrationStore(filename) {
   };
   return {
     async read() { await queue; return load(); },
-    publish(value) {
+    async publish(value) {
       const snapshot = workspace.parse(value.workspace);
       const results = z.array(receipt).max(100).parse(value.results);
-      return write(data => {
+      await write(data => {
         data.workspace = { ...snapshot, syncedAt: new Date().toISOString() };
         for (const result of results) {
           const change = data.changes.find(item => item.id === result.id && item.status === 'pending');
@@ -55,8 +56,31 @@ export function integrationStore(filename) {
         const pending = data.changes.filter(item => item.status === 'pending');
         data.changes = [...data.changes.filter(item => item.status !== 'pending').slice(-200), ...pending];
       });
+      if (videos) await Promise.all(results.map(result => videos.remove(result.id)));
     },
-    enqueue(kind, args) {
+    videos,
+    async enqueueVideo({ brand, video, ...args }) {
+      const data = await this.read();
+      if (!data.workspace) throw new Error('Sync the desktop calendar first.');
+      const matches = data.workspace.brands.filter(item => item.name.toLowerCase() === brand.trim().toLowerCase());
+      if (matches.length !== 1) throw new Error('Choose one existing brand by its exact name.');
+      const localDate = new Intl.DateTimeFormat('en-CA', {
+        timeZone: data.workspace.timeZone ?? 'UTC', year: 'numeric', month: '2-digit', day: '2-digit',
+      }).format(new Date());
+      const date = args.date ?? localDate;
+      const time = args.time ?? '17:00';
+      withSchedule({}, 'youtube', date, time);
+      const changeId = randomUUID();
+      let media;
+      try { media = await videos.save(changeId, video); }
+      catch (error) {
+        if (error.message.startsWith('fetch failed') || error.name === 'TimeoutError') throw new Error('Could not download the ChatGPT attachment. Try attaching it again.');
+        throw error;
+      }
+      try { return await this.enqueue('create', { ...args, date, time, brandId: matches[0].id }, { changeId, media }); }
+      catch (error) { await videos.remove(changeId); throw error; }
+    },
+    enqueue(kind, args, { changeId = randomUUID(), media } = {}) {
       return write(data => {
         if (!data.workspace) throw new Error('Sync the desktop calendar before making changes.');
         if (data.changes.filter(item => item.status === 'pending').length >= 100) throw new Error('Sync the desktop calendar to apply pending changes first.');
@@ -66,7 +90,7 @@ export function integrationStore(filename) {
           const current = data.workspace.posts.find(item => item.id === args.postId);
           withSchedule({}, 'youtube', args.date ?? current?.date, args.time ?? current?.time);
         }
-        const change = { ...args, id: randomUUID(), kind, postId: args.postId ?? randomUUID(), status: 'pending' };
+        const change = { ...args, id: changeId, ...(media ? { media } : {}), kind, postId: args.postId ?? randomUUID(), status: 'pending' };
         data.changes.push(change);
         return { changeId: change.id, postId: change.postId, status: change.status,
           message: 'Queued. The desktop calendar will apply this change on its next ChatGPT sync.' };
@@ -78,11 +102,11 @@ export function integrationStore(filename) {
 export function createMcp(store, scopes) {
   const server = new McpServer({ name: 'Cuesprig', version: '0.1.0' },
     { instructions: 'Cuesprig shows the last synced calendar. Changes are queued until desktop sync. Recording a schedule updates the calendar only.' });
-  const register = (name, label, description, inputSchema, scope, handler, destructiveHint = false) => {
+  const register = (name, label, description, inputSchema, scope, handler, destructiveHint = false, metadata = {}) => {
     const readOnlyHint = scope === 'calendar:read';
     server.registerTool(name, { title: label, description, inputSchema,
       annotations: { readOnlyHint, destructiveHint, openWorldHint: false, idempotentHint: readOnlyHint },
-      _meta: { securitySchemes: [{ type: 'oauth2', scopes: [scope] }] },
+      _meta: { ...metadata, securitySchemes: [{ type: 'oauth2', scopes: [scope] }] },
     }, async args => {
       if (!scopes.has(scope)) return { isError: true, content: [{ type: 'text', text: 'This connection lacks permission for this action.' }] };
       try {
@@ -114,6 +138,12 @@ export function createMcp(store, scopes) {
     });
   register('create_draft', 'Create a draft', 'Queue a new draft without media for the specified brand.',
     { brandId: id, title, description: description.optional(), date, time }, 'calendar:write', args => store.enqueue('create', args));
+  if (store.videos) register('import_video_draft', 'Import a video into Cuesprig',
+    'Use when the user provides a video, title, description and brand. Creates a draft with the attachment. If no date and time are given, use today at 5 PM in the synced desktop time zone as a planning slot. It does not publish or schedule on a social platform.',
+    { brand: z.string().trim().min(1).max(40), title, description, date: date.optional(), time: time.optional(),
+      video: z.object({ download_url: z.string().max(8192), file_id: z.string().min(1).max(256),
+        mime_type: z.string().optional(), file_name: z.string().optional() }) },
+    'calendar:write', args => store.enqueueVideo(args), false, { 'openai/fileParams': ['video'] });
   register('update_draft', 'Update a draft', 'Queue changes to an unscheduled draft. Existing video attachments stay on the desktop.',
     { postId: id, title: title.optional(), description: description.optional(), date: date.optional(), time: time.optional() },
     'calendar:write', args => store.enqueue('edit', args));

@@ -17,7 +17,12 @@ test('MCP reads synced records, enforces write scope and acknowledges desktop ch
   const readToken = 'r'.repeat(32), writeToken = 'w'.repeat(32);
   const audience = 'https://calendar.example.com/mcp';
   const server = calendarServer({ readToken, writeToken, filename: join(directory, 'calendar.json'), chatgpt: {
-    audience, issuer: 'https://identity.example.com',
+    audience, issuer: 'https://identity.example.com', attachmentOrigins: ['https://files.example.com'],
+    fetchAttachment(url, options) {
+      assert.equal(url.hostname, 'files.example.com');
+      assert.equal(options.redirect, 'error');
+      return new Response('fixture video', { headers: { 'Content-Type': 'video/mp4' } });
+    },
     authorize(token) {
       if (token === 'read') return new Set(['calendar:read']);
       if (token === 'write') return new Set(['calendar:read', 'calendar:write']);
@@ -81,6 +86,29 @@ test('MCP reads synced records, enforces write scope and acknowledges desktop ch
   assert.equal(updated.title, 'New title');
   assert.equal(updated.video, 'local');
   assert.deepEqual(updated.schedules, {});
+  const tool = tools.find(item => item.name === 'import_video_draft');
+  assert.deepEqual(tool._meta['openai/fileParams'], ['video']);
+  assert.deepEqual(tool.inputSchema.properties.video.required.sort(), ['download_url', 'file_id']);
+  const video = { download_url: 'https://files.example.com/clip?signature=private', file_id: 'fixture', file_name: 'clip.mp4' };
+  const importArgs = { brand: 'studio', title: 'Clip', description: 'Example caption', video };
+  const sendVideo = args => writer.callTool({ name: tool.name, arguments: args });
+  assert.equal((await reader.callTool({ name: tool.name, arguments: importArgs })).isError, true);
+  assert.equal((await sendVideo({ ...importArgs, brand: 'missing' })).isError, true);
+  assert.equal((await sendVideo({ ...importArgs, video: { ...video, download_url: 'https://localhost/clip' } })).isError, true);
+  const imported = await sendVideo(importArgs);
+  const changeId = imported.structuredContent.changeId;
+  const staged = (await (await sync('GET', writeToken)).json()).changes.find(item => item.id === changeId);
+  assert.equal(staged.brandId, 'brand');
+  assert.equal(staged.time, '17:00');
+  assert.equal(staged.media.name, 'clip.mp4');
+  assert.equal(JSON.stringify(staged).includes('signature'), false);
+  const bytesUrl = base + '/api/chatgpt-video/' + changeId;
+  assert.equal((await fetch(bytesUrl, { headers: { Authorization: `Bearer ${readToken}` } })).status, 401);
+  const file = await fetch(bytesUrl, { headers: { Authorization: `Bearer ${writeToken}` } });
+  assert.equal(await file.text(), 'fixture video');
+  assert.equal((await sync('PUT', writeToken, { workspace, results: [{ id: changeId, status: 'applied' }] })).status, 204);
+  assert.equal((await fetch(bytesUrl, { headers: { Authorization: `Bearer ${writeToken}` } })).status, 404);
+
 });
 
 

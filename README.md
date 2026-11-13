@@ -105,6 +105,16 @@ Cuesprig can expose your synced calendar through a private ChatGPT MCP plugin. I
 3. In Cuesprig’s **Phone calendar** settings, enable **Sync drafts and schedule changes with ChatGPT** and click **Save and sync**. This also shares draft titles, captions, and planned times with your own server. Use **Save and sync** again to pull queued changes on demand. Editing the local calendar also triggers sync.
 4. In [ChatGPT Plugins](https://chatgpt.com/plugins), add a custom MCP server with the HTTPS MCP URL and OAuth authentication. Authorize the scopes you want to use. See [OpenAI’s connection guide](https://developers.openai.com/apps-sdk/deploy/connect-chatgpt) for provider and workspace requirements.
 
+### Send a video from ChatGPT
+
+On a ChatGPT surface that accepts your video attachment, attach the clip and say: “Use Cuesprig to import this video for Studio. Title: A fresh start. Description: A look behind the scenes.” You can add a planned date and time. Without them, Cuesprig uses today at 5 PM in the last synced desktop time zone as a draft slot.
+
+To enable the attachment tool, set `CUESPRIG_ATTACHMENT_ORIGINS` on the connector host to the exact, trusted HTTPS origins used by your ChatGPT attachment delivery, separated by commas. Do not allow arbitrary origins. Refresh the ChatGPT tool list after enabling it.
+
+The connector streams one MP4, MOV, or WebM file at a time to private staging storage. The limit is 100 MiB per video and 200 MiB total staged. Open or return to the desktop calendar to import queued drafts. The server deletes the staged file when the desktop acknowledges the import. After 24 hours a staged file cannot be retrieved, and expired files are removed during the next video intake. For a host with retention requirements, set up storage cleanup for expired files. Videos are outside phone calendar sync and calendar read tools.
+
+An imported clip is a draft. Use the extension to prepare the platform upload and record the platform's confirmation. No social account action is triggered by the import.
+
 The OAuth connection uses separate credentials from the phone and desktop keys. Keep the desktop write key private. Turning off ChatGPT sync stops desktop transfers. Disable the MCP endpoint or revoke the OAuth authorization to stop ChatGPT access to the last server snapshot.
 
 ## Current development status
