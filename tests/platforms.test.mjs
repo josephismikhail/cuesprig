@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isPlatformUrl } from '../extension/platforms.js';
+const { isPlatformUrl } = await import('../dist/cuesprig/platforms.js');
 
 test('platform matching rejects lookalike hosts, insecure URLs and other platforms', () => {
   assert.equal(isPlatformUrl('youtube', 'https://studio.youtube.com/channel/example'), true);

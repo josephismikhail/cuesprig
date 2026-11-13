@@ -1,3 +1,4 @@
+import { platforms, calendarEntries } from '../public/schedules.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -25,10 +26,11 @@ async function calendar(posts) {
   };
   let source = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
   source = source.replaceAll('\r', '');
-  source = source.slice(source.indexOf(';') + 1, source.lastIndexOf('\nrenderCalendar();'));
+  source = source.replace(/^import .*;\n/gm, '');
+  source = source.slice(0, source.lastIndexOf('\nrenderCalendar();'));
   const context = vm.createContext({
     document: { getElementById: get, createElement: () => new Element(), addEventListener() {} },
-    window: { addEventListener() {} }, Date, Intl, setTimeout, clearTimeout, inputPosts: posts,
+    window: { addEventListener() {} }, Date, Intl, setTimeout, clearTimeout, inputPosts: posts, platforms, calendarEntries,
   });
   vm.runInContext(source + `
     brands = [{ id: 'test', name: 'Example' }];

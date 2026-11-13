@@ -1,8 +1,5 @@
-export const platforms = {
-  youtube: { name: 'YouTube', url: 'https://studio.youtube.com/', hosts: ['studio.youtube.com'] },
-  instagram: { name: 'Instagram', url: 'https://www.instagram.com/', hosts: ['www.instagram.com', 'business.facebook.com'] },
-  tiktok: { name: 'TikTok', url: 'https://www.tiktok.com/tiktokstudio/upload', hosts: ['www.tiktok.com'] },
-};
+import { platforms } from './app/schedules.js';
+export { platforms };
 
 export function isPlatformUrl(platform, url) {
   try {
