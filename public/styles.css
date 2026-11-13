@@ -534,3 +534,5 @@ textarea {
 .selected-post { background:#f8f2fc; border-radius:8px; }
 .calendar-grid { grid-template-rows:repeat(var(--weeks),minmax(180px,1fr)); }
 @media(max-width:600px) { .day-post-row { grid-template-columns:minmax(0,1fr) auto; gap:8px; } .day-post-row time { grid-column:1/-1; } #day-posts { padding:16px; } }
+
+.platform-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }

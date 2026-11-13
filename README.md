@@ -1,31 +1,58 @@
-# Cuesprig — local calendar UI
+# Cuesprig
 
-A dependency-free, local prototype: a weekly calendar with a month view switch, a large add button, video drag-and-drop and preview, a YouTube title, and a description shared across platforms. Choose a date and time to save a local draft. Click a time slot to start a post, or a draft to edit it. The Accounts panel sketches future connections; its Connect buttons are disabled in this preview.
+A local video calendar for creators managing YouTube, Instagram, and TikTok. Plan videos in a week or month view, organize brands, and prepare uploads using your existing Chrome sign-ins.
 
-## Run
+## Install from source
 
-Requires Node.js 20 or later.
+You need desktop Google Chrome and Node.js 20 or later.
+
+1. Download this repository with **Code → Download ZIP**, then extract it into a folder you intend to keep.
+2. Open a terminal in that folder and run `npm run build`.
+3. Open `chrome://extensions` in Chrome.
+4. Turn on **Developer mode**, then select **Load unpacked**.
+5. Select the generated `dist/cuesprig` folder. The welcome screen opens.
+6. Open Chrome’s Extensions menu and pin **Cuesprig**.
+7. Click Cuesprig, then **Open calendar**. Create your brand and add a video.
+
+Keep the extracted folder in place. To update, replace the source files, run `npm run build`, and click **Reload** on the Cuesprig card at `chrome://extensions`. Keep the same extension folder to retain its identity and local storage.
+
+## Prepare a video
+
+1. Add a video, YouTube title, description, date, and time to your calendar.
+2. Open its card and choose **Prepare for YouTube**, **Prepare for Instagram**, or **Prepare for TikTok**.
+3. Sign in on the platform and verify the intended account. Open its upload editor.
+4. Click the pinned Cuesprig extension. Choose **Insert video** and keep the popup open until the handoff finishes.
+5. After the platform processes the upload, click Cuesprig again and choose **Fill title and description**. Copy buttons provide a fallback if the platform’s editor has changed.
+6. Review the content, account, date, time, and time zone in the platform. Complete scheduling there and wait for its confirmation before closing it.
+
+The companion uses Chrome’s temporary access to the tab where you click it. Upload and text controls are experimental and require verification against the live platform editors. Scheduling confirmation and publication status are not yet synchronized back into the calendar. Entries currently remain labeled as drafts.
+
+## Calendar
+
+The title on each card is the YouTube title. Week view groups overlapping videos into a readable **View posts** card. Month view displays two videos per day and a **+N more** button. Open either to see the full day’s list and edit a video. Each brand has its own calendar and optional profile picture.
+
+## Local development and tests
 
 ```sh
 npm run dev
-```
-
-Open http://127.0.0.1:4317. The server listens only on the local loopback interface. Keep this process running while opening the prototype. `PORT` can override the default.
-
-```sh
+npm test
 npm run check
 ```
 
-## Scope and storage
+The development calendar is available at http://127.0.0.1:4317. Tests cover title display, overlapping entries, month overflow, day details, brand isolation, URL restrictions, and the built extension’s entrypoints.
 
-This version is a UI prototype. It does not log in to social platforms, upload remotely, or schedule platform publication. Entries are visibly marked as local drafts.
+The development server and installed extension have separate browser storage. Existing localhost drafts remain on that origin. Export/import for moving drafts is still pending.
 
-Videos and metadata are stored in this browser's IndexedDB, outside the source repository. There are no analytics, third-party assets, or network uploads. Browser data clearing removes drafts; this prototype is not a backup. Storage is specific to the browser profile and origin, so keep the same local URL and port.
+## Privacy and storage
 
-Use the brand switcher beside Accounts to create, rename, or switch brands. Each brand has a separate calendar and an optional uploaded picture (PNG, JPG, WebP, or GIF, up to 5 MB). Brand names, pictures, and the selected brand stay in IndexedDB and are not written into this repository. Existing drafts migrate to the initial “My brand” workspace; renaming that brand preserves them. Close older calendar tabs before the first storage upgrade if prompted. Importing a social profile picture remains disabled until account connections are implemented.
+Videos, brand pictures, titles, and descriptions are stored in IndexedDB in your Chrome profile. The extension sends a selected video and text to a platform only when you activate its transfer controls. Authentication happens on the platform itself using your normal browser session.
 
-The web manifest provides standalone-window metadata; offline launch and the browser automation companion are future work.
+There are no analytics or bundled credentials. Clearing extension storage or uninstalling it deletes its local data. Keep original video files separately. Chrome Sync and a read-only phone calendar are not implemented yet.
 
-## Public source hygiene
+## Current development status
 
-Use fictional data in screenshots and examples. Never commit browser profiles, session cookies, credentials, personal media, or exported draft databases. The ignore rules are a secondary safeguard, not a substitute for reviewing staged files and history before publication.
+This release is under active development. Remaining work includes live browser verification, native scheduling confirmation, backups/import, read-only phone synchronization, and release ZIP packaging. Browser automation can need updates when platform interfaces change. Check the platform’s own scheduler to confirm what will publish.
+
+## Contributing
+
+Use fictional data in examples and screenshots. Run `npm test` and `npm run check` before submitting changes. Keep credentials, browser profiles, exports, personal media, and local configuration out of Git. Report platform failures with the platform name and reproduction steps, omitting account identifiers and private content.

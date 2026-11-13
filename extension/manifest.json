@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "Cuesprig",
+  "version": "0.2.0",
+  "description": "A private local content calendar with a browser scheduling companion.",
+  "action": { "default_title": "Open Cuesprig", "default_popup": "popup.html" },
+  "permissions": ["activeTab", "scripting", "storage"],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "content_security_policy": { "extension_pages": "script-src 'self'; object-src 'self'" }
+}

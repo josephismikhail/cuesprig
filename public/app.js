@@ -207,6 +207,20 @@ function openDayPosts(date, selectedId = null) {
     const status = document.createElement('p'); status.textContent = 'Draft · Not scheduled on any platform';
     content.append(title, status);
     if (post.description) { const description = document.createElement('p'); description.className = 'post-description'; description.textContent = post.description; content.append(description); }
+    if (globalThis.chrome?.runtime?.id) {
+      const actions = document.createElement('div'); actions.className = 'platform-actions';
+      const destinations = { youtube: ['YouTube', 'https://studio.youtube.com/'], instagram: ['Instagram', 'https://www.instagram.com/'], tiktok: ['TikTok', 'https://www.tiktok.com/tiktokstudio/upload'] };
+      for (const [platform, [label, url]] of Object.entries(destinations)) {
+        const prepare = document.createElement('button'); prepare.className = 'today-button'; prepare.textContent = `Prepare for ${label}`;
+        prepare.addEventListener('click', async () => {
+          await chrome.storage.local.set({ pendingPost: { id: post.id, platform } });
+          await chrome.tabs.create({ url });
+          showToast('Open the upload editor, then click the Cuesprig extension to insert your video and text.');
+        });
+        actions.append(prepare);
+      }
+      content.append(actions);
+    }
     const edit = document.createElement('button'); edit.className = 'today-button'; edit.textContent = 'Edit';
     edit.addEventListener('click', () => { $('day-posts').close(); openComposer(date, post); });
     row.append(time, content, edit); list.append(row);
