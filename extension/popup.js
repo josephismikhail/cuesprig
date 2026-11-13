@@ -1,5 +1,5 @@
 import { readWorkspace } from './app/storage.js';
-import { platforms, isPlatformUrl, fillTextFields } from './platforms.js';
+import { platforms, isTransferTab, initializeVideoTransfer, fillTextFields } from './platforms.js';
 
 const status = document.getElementById('status');
 let pending;
@@ -23,8 +23,8 @@ document.getElementById('open-calendar').addEventListener('click', async () => {
 });
 
 async function onPlatform(action) {
-  if (!post || !isPlatformUrl(pending.platform, tab?.url)) {
-    status.textContent = 'Open the selected platform and click the Cuesprig extension again.';
+  if (!post || !isTransferTab(pending, tab)) {
+    status.textContent = 'Use the tab opened by Prepare for this platform, then click Cuesprig again.';
     return;
   }
   try { await action(); }
@@ -48,12 +48,10 @@ document.getElementById('upload-video').addEventListener('click', () => onPlatfo
   const button = document.getElementById('upload-video'); button.disabled = true;
   try {
     if (!post.video) throw new Error('This post has no local video.');
-    const [{ result: ready }] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: () => {
-      const input = document.querySelector('input[type="file"][accept*="video"], input[type="file"][accept*="mp4"], input[type="file"]');
-      if (!input) return false;
-      globalThis.cuesprigUpload = { input, chunks: [] }; return true;
-    } });
-    if (!ready) throw new Error('Open the platform’s upload dialog first.');
+    const [{ result: ready }] = await chrome.scripting.executeScript({
+      target: { tabId: tab.id }, func: initializeVideoTransfer,
+    });
+    if (!ready) throw new Error('Open a single video upload editor, or choose the video manually.');
     const chunkSize = 256 * 1024;
     for (let offset = 0; offset < post.video.size; offset += chunkSize) {
       const bytes = new Uint8Array(await post.video.slice(offset, offset + chunkSize).arrayBuffer());
@@ -74,5 +72,8 @@ document.getElementById('upload-video').addEventListener('click', () => onPlatfo
       upload.input.dispatchEvent(new Event('change', { bubbles: true }));
     }, args: [{ name: post.video.name || 'video.mp4', type: post.video.type || 'video/mp4' }] });
     status.textContent = 'Video handed to the platform. Wait for its upload to finish, then review the account and schedule.';
+  } catch (error) {
+    await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: () => { delete globalThis.cuesprigUpload; } }).catch(() => {});
+    throw error;
   } finally { button.disabled = false; }
 }));
