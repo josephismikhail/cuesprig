@@ -1,6 +1,7 @@
 const $ = (id) => document.getElementById(id);
 const today = new Date();
-let month = new Date(today.getFullYear(), today.getMonth(), 1);
+let focusDate = new Date(today);
+let view = 'week';
 let posts = [];
 let file = null;
 let objectUrl = null;
@@ -49,58 +50,103 @@ async function storePost(post) {
   });
 }
 
+function postCard(post) {
+  const card = document.createElement('button');
+  card.className = 'post-card';
+  const time = new Date(`${post.date}T${post.time}`).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  card.setAttribute('aria-label', `Edit ${post.title}, ${time}, local draft`);
+  const name = document.createElement('strong'); name.textContent = post.title;
+  const detail = document.createElement('small'); detail.textContent = `${time} · Draft`;
+  card.append(name, detail);
+  card.addEventListener('click', () => openComposer(post.date, post));
+  return card;
+}
+
+function weekStart(date) {
+  const start = new Date(date);
+  start.setDate(start.getDate() - (start.getDay() + 6) % 7);
+  return start;
+}
+
 function renderCalendar() {
-  const title = $('month-title');
-  title.replaceChildren(document.createTextNode(month.toLocaleDateString(undefined, { month: 'long' })));
-  const year = document.createElement('span');
-  year.textContent = month.getFullYear();
-  title.append(document.createTextNode(' '), year);
-  const first = new Date(month);
-  const offset = (first.getDay() + 6) % 7;
-  first.setDate(1 - offset);
-  const daysInMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
-  const weeks = Math.ceil((offset + daysInMonth) / 7);
-  const total = weeks * 7;
-  const grid = $('calendar-grid');
-  grid.style.setProperty('--weeks', weeks);
-  grid.replaceChildren();
-  for (let i = 0; i < total; i++) {
-    const date = new Date(first);
-    date.setDate(first.getDate() + i);
+  $('week-view').hidden = view !== 'week';
+  $('month-view').hidden = view !== 'month';
+  for (const mode of ['week', 'month']) $('view-' + mode).setAttribute('aria-pressed', String(view === mode));
+  $('previous').setAttribute('aria-label', `Previous ${view}`);
+  $('next').setAttribute('aria-label', `Next ${view}`);
+  if (view === 'week') renderWeek(); else renderMonth();
+}
+
+function renderWeek() {
+  const first = weekStart(focusDate);
+  const last = new Date(first); last.setDate(first.getDate() + 6);
+  $('month-title').textContent = new Intl.DateTimeFormat(undefined, { month: 'long', day: 'numeric', year: 'numeric' }).formatRange(first, last);
+  const heading = $('week-heading'); heading.replaceChildren(document.createElement('span'));
+  const grid = $('week-grid'); grid.replaceChildren();
+  const times = document.createElement('div'); times.className = 'time-labels';
+  for (let hour = 0; hour < 24; hour++) {
+    const label = document.createElement('span');
+    label.textContent = new Date(2000, 0, 1, hour).toLocaleTimeString(undefined, { hour: 'numeric' });
+    times.append(label);
+  }
+  grid.append(times);
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(first); date.setDate(first.getDate() + i);
     const key = dayKey(date);
     const current = key === dayKey(today);
-    const cell = document.createElement('div');
-    cell.className = `day-cell${date.getMonth() !== month.getMonth() ? ' outside' : ''}${i % 7 >= 5 ? ' weekend' : ''}${i >= total - 7 ? ' last-row' : ''}`;
-    const button = document.createElement('button');
-    button.className = 'day-head';
-    button.setAttribute('aria-label', `Add post for ${readableDate(date)}`);
-    const number = document.createElement('span');
-    number.className = `day-number${current ? ' is-today' : ''}`;
-    number.textContent = date.getDate();
+    const head = document.createElement('div'); head.className = 'week-day-heading';
+    const label = document.createElement('span'); label.textContent = date.toLocaleDateString(undefined, { weekday: 'short' });
+    const number = document.createElement('span'); number.className = 'day-number' + (current ? ' is-today' : ''); number.textContent = date.getDate();
     if (current) number.setAttribute('aria-current', 'date');
-    button.append(number);
-    if (current) { const label = document.createElement('span'); label.className = 'today-label'; label.textContent = 'TODAY'; button.append(label); }
-    const plus = document.createElement('span');
-    plus.className = 'day-add'; plus.textContent = '+'; plus.setAttribute('aria-hidden', 'true'); button.append(plus);
-    button.addEventListener('click', () => openComposer(key));
-    cell.append(button);
-    posts.filter((post) => post.date === key).sort((a, b) => a.time.localeCompare(b.time)).forEach((post) => {
-      const card = document.createElement('button');
-      card.className = 'post-card';
-      const time = new Date(`${post.date}T${post.time}`).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-      card.setAttribute('aria-label', `Edit ${post.title}, ${time}, local draft`);
-      const play = document.createElement('span'); play.className = 'card-play'; play.textContent = '▶';
-      const info = document.createElement('span'); info.className = 'card-info';
-      const name = document.createElement('strong'); name.textContent = post.title;
-      const detail = document.createElement('small'); detail.textContent = `${time} · Draft`;
-      info.append(name, detail); card.append(play, info);
-      card.addEventListener('click', () => openComposer(post.date, post));
-      cell.append(card);
+    head.append(label, number); heading.append(head);
+    const column = document.createElement('div'); column.className = 'week-day' + (current ? ' current-day' : '');
+    for (let hour = 0; hour < 24; hour++) {
+      const slot = document.createElement('button'); slot.className = 'time-slot';
+      const time = `${String(hour).padStart(2, '0')}:00`;
+      slot.setAttribute('aria-label', `Add post for ${readableDate(date)} at ${time}`);
+      slot.addEventListener('click', () => openComposer(key, null, time));
+      column.append(slot);
+    }
+    const dayPosts = posts.filter(post => post.date === key).sort((a, b) => a.time.localeCompare(b.time));
+    // Group overlapping 48-minute cards so every draft stays reachable.
+    const groups = [];
+    for (const post of dayPosts) {
+      const [hours, minutes] = post.time.split(':').map(Number);
+      const minute = hours * 60 + minutes;
+      let group = groups.at(-1);
+      if (!group || minute >= group.end) { group = { end: minute + 48, items: [] }; groups.push(group); }
+      group.end = minute + 48; group.items.push({ post, minute });
+    }
+    for (const group of groups) group.items.forEach(({ post, minute }, index) => {
+      const card = postCard(post); card.classList.add('week-post');
+      card.style.top = `${Math.min(minute, 1392) / 60 * 60}px`;
+      card.style.left = `calc(${index * 100 / group.items.length}% + 3px)`;
+      card.style.width = `calc(${100 / group.items.length}% - 6px)`;
+      column.append(card);
     });
+    grid.append(column);
+  }
+}
+
+function renderMonth() {
+  const month = new Date(focusDate.getFullYear(), focusDate.getMonth(), 1);
+  $('month-title').textContent = month.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  const first = weekStart(month);
+  const offset = (month.getDay() + 6) % 7;
+  const weeks = Math.ceil((offset + new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate()) / 7);
+  const grid = $('calendar-grid'); grid.style.setProperty('--weeks', weeks); grid.replaceChildren();
+  for (let i = 0; i < weeks * 7; i++) {
+    const date = new Date(first); date.setDate(first.getDate() + i);
+    const key = dayKey(date);
+    const cell = document.createElement('div'); cell.className = 'day-cell' + (date.getMonth() !== month.getMonth() ? ' outside' : '');
+    const button = document.createElement('button'); button.className = 'day-head';
+    button.setAttribute('aria-label', `Add post for ${readableDate(date)}`);
+    const number = document.createElement('span'); number.className = 'day-number' + (key === dayKey(today) ? ' is-today' : ''); number.textContent = date.getDate();
+    if (key === dayKey(today)) number.setAttribute('aria-current', 'date');
+    button.append(number); button.addEventListener('click', () => openComposer(key)); cell.append(button);
+    posts.filter(post => post.date === key).sort((a, b) => a.time.localeCompare(b.time)).forEach(post => cell.append(postCard(post)));
     grid.append(cell);
   }
-  const count = posts.filter((post) => { const d = localDate(post.date); return d.getFullYear() === month.getFullYear() && d.getMonth() === month.getMonth(); }).length;
-  $('draft-count').textContent = `${count} ${count === 1 ? 'draft' : 'drafts'} this month`;
 }
 
 function clearPreview() {
@@ -131,7 +177,7 @@ function attachFile(candidate) {
 
 function showError(message) { $('form-error').textContent = message; $('form-error').hidden = false; }
 function titleCounter() { $('title-count').textContent = `${$('post-title').value.length} / 100`; }
-function openComposer(date = dayKey(today), post = null) {
+function openComposer(date = dayKey(today), post = null, time = '17:00') {
   $('post-form').reset(); clearPreview(); file = null;
   editingId = post?.id || null;
   $('composer-title').innerHTML = post ? 'Edit post<span>.</span>' : 'New post<span>.</span>';
@@ -139,7 +185,7 @@ function openComposer(date = dayKey(today), post = null) {
   $('post-title').value = post?.title || '';
   $('post-description').value = post?.description || '';
   $('post-date').value = date;
-  $('post-time').value = post?.time || '17:00';
+  $('post-time').value = post?.time || time;
   $('video-preview').hidden = true; $('choose-video').hidden = false;
   $('file-name').textContent = 'One video. Three possibilities.';
   $('file-size').textContent = 'Start with the video. The rest comes together.';
@@ -149,13 +195,24 @@ function openComposer(date = dayKey(today), post = null) {
   $('composer').showModal();
 }
 
-$('add-post').addEventListener('click', () => openComposer(month.getMonth() === today.getMonth() && month.getFullYear() === today.getFullYear() ? dayKey(today) : dayKey(month)));
+$('add-post').addEventListener('click', () => openComposer(dayKey(focusDate)));
+$('open-accounts').addEventListener('click', () => $('accounts').showModal());
+$('close-accounts').addEventListener('click', () => $('accounts').close());
 for (const id of ['close-composer', 'cancel']) $(id).addEventListener('click', () => { if (!saving) $('composer').close(); });
 $('composer').addEventListener('cancel', (event) => { if (saving) event.preventDefault(); });
 $('composer').addEventListener('close', clearPreview);
-$('previous').addEventListener('click', () => { month.setMonth(month.getMonth() - 1); renderCalendar(); });
-$('next').addEventListener('click', () => { month.setMonth(month.getMonth() + 1); renderCalendar(); });
-$('today').addEventListener('click', () => { month = new Date(today.getFullYear(), today.getMonth(), 1); renderCalendar(); });
+function navigate(direction) {
+  if (view === 'week') focusDate.setDate(focusDate.getDate() + direction * 7);
+  else focusDate = new Date(focusDate.getFullYear(), focusDate.getMonth() + direction, 1);
+  renderCalendar();
+}
+$('previous').addEventListener('click', () => navigate(-1));
+$('next').addEventListener('click', () => navigate(1));
+$('today').addEventListener('click', () => { focusDate = new Date(today); renderCalendar(); });
+for (const mode of ['week', 'month']) $('view-' + mode).addEventListener('click', () => {
+  view = mode; renderCalendar();
+  if (mode === 'week') $('week-scroll').scrollTop = 8 * 60;
+});
 $('post-title').addEventListener('input', titleCounter);
 for (const id of ['choose-video', 'replace-video']) $(id).addEventListener('click', () => $('video-file').click());
 $('video-file').addEventListener('change', () => attachFile($('video-file').files[0]));
@@ -184,12 +241,16 @@ $('post-form').addEventListener('submit', async (event) => {
   try {
     await storePost(post);
     posts = posts.filter((item) => item.id !== post.id).concat(post);
-    const selected = localDate(post.date); month = new Date(selected.getFullYear(), selected.getMonth(), 1);
-    renderCalendar(); $('composer').close(); showToast('Draft saved to your calendar.');
+    focusDate = localDate(post.date);
+    renderCalendar();
+    if (view === 'week') $('week-scroll').scrollTop = Math.max(0, Number(post.time.split(':')[0]) - 2) * 60;
+    $('composer').close(); showToast('Draft saved to your calendar.');
   } catch { showError('Could not save this video on your device. Browser storage may be full or unavailable. Your draft is still here.'); }
   finally { saving = false; $('save-post').disabled = false; }
 });
-$('timezone').textContent = Intl.DateTimeFormat().resolvedOptions().timeZone.replaceAll('_', ' ');
+
 renderCalendar();
 try { posts = await readPosts(); renderCalendar(); }
 catch { showToast('Local storage is unavailable. Drafts cannot be saved yet.'); }
+
+$('week-scroll').scrollTop = 8 * 60;
