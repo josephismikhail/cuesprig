@@ -544,3 +544,8 @@ textarea {
 
 #phone-sync { width:min(560px,calc(100% - 32px)); padding:24px; }
 #phone-sync p { color:var(--muted); font-size:14px; }
+
+#backup-dialog { width:min(560px,calc(100% - 32px)); padding:24px; }
+#restore-backup { margin-top:24px; display:grid; gap:14px; justify-items:start; }
+#restore-backup .field { min-width:0; width:100%; }
+.backup-confirm { display:flex; align-items:center; gap:8px; }

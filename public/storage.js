@@ -64,3 +64,12 @@ export const storeBrand = brand => write(['brands', 'settings'], transaction => 
   transaction.objectStore('brands').put(brand);
   transaction.objectStore('settings').put({ id: 'activeBrand', value: brand.id });
 });
+
+export const restoreWorkspace = workspace => write(['posts', 'brands', 'settings'], transaction => {
+  for (const store of ['posts', 'brands']) {
+    const objectStore = transaction.objectStore(store);
+    objectStore.clear();
+    for (const record of workspace[store]) objectStore.put(record);
+  }
+  transaction.objectStore('settings').put({ id: 'activeBrand', value: workspace.activeBrandId });
+});
