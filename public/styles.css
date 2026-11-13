@@ -519,3 +519,18 @@ textarea {
   #brand-menu { top: 190px; }
   .week-scroll { height: calc(100dvh - 420px); }
 }
+
+/* Busy days retain readable titles rather than narrow overlapping cards. */
+.more-posts { border:0; background:transparent; color:var(--muted); padding:6px 12px; font-size:12px; border-radius:6px; }
+#day-posts { width:min(760px,calc(100% - 32px)); padding:24px; }
+#day-posts-title { font-size:24px; }
+#day-posts-count { color:var(--muted); font-size:13px; margin:8px 0 0; }
+#day-posts-list { margin-top:20px; }
+.day-post-row { display:grid; grid-template-columns:85px minmax(0,1fr) auto; align-items:start; gap:16px; padding:20px 8px; border-top:1px solid var(--border); }
+.day-post-row time { font-size:13px; color:var(--muted); padding-top:3px; }
+.day-post-row h3 { font-size:17px; font-weight:500; margin:0; overflow-wrap:anywhere; }
+.day-post-row p { font-size:12px; color:var(--muted); margin:8px 0 0; }
+.day-post-row .post-description { white-space:pre-wrap; overflow-wrap:anywhere; color:var(--dark); font-size:14px; }
+.selected-post { background:#f8f2fc; border-radius:8px; }
+.calendar-grid { grid-template-rows:repeat(var(--weeks),minmax(180px,1fr)); }
+@media(max-width:600px) { .day-post-row { grid-template-columns:minmax(0,1fr) auto; gap:8px; } .day-post-row time { grid-column:1/-1; } #day-posts { padding:16px; } }
