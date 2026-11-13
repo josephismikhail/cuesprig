@@ -176,6 +176,7 @@ $('brand-form').addEventListener('submit', async event => {
   brandBusy = true; $('save-brand').disabled = true;
   try {
     await storeBrand(brand);
+    window.dispatchEvent(new Event('cuesprig:schedules-changed'));
     brands = brands.filter(item => item.id !== brand.id).concat(brand);
     activeBrandId = brand.id;
     renderBrands(); renderCalendar(); $('brand-editor').close();
@@ -270,6 +271,7 @@ async function saveSchedule(remove) {
     const updated = remove ? withoutSchedule(post, platform)
       : withSchedule(post, platform, $('schedule-date').value, $('schedule-time').value);
     await storePost(updated);
+    window.dispatchEvent(new Event('cuesprig:schedules-changed'));
     posts = posts.map(item => item.id === updated.id ? updated : item);
     focusDate = localDate(remove ? updated.date : updated.schedules[platform].date);
     renderCalendar();
@@ -482,6 +484,7 @@ $('post-form').addEventListener('submit', async (event) => {
   const post = { ...previous, id: editingId || crypto.randomUUID(), brandId: activeBrandId, title: $('post-title').value.trim(), description: $('post-description').value, date: $('post-date').value, time: $('post-time').value, video: file };
   try {
     await storePost(post);
+    if (post.schedules) window.dispatchEvent(new Event('cuesprig:schedules-changed'));
     posts = posts.filter((item) => item.id !== post.id).concat(post);
     focusDate = localDate(post.date);
     renderCalendar();

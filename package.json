@@ -6,8 +6,9 @@
   "scripts": {
     "dev": "node server.mjs",
     "start": "node server.mjs",
-    "check": "node --check server.mjs && node --check public/app.js && node --check public/storage.js",
+    "check": "node scripts/check.mjs",
     "build": "node scripts/build.mjs",
-    "test": "npm run build && node --test tests/*.test.mjs"
+    "test": "npm run build && node --test tests/*.test.mjs",
+    "sync": "node sync/server.mjs"
   }
 }

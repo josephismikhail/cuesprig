@@ -47,11 +47,23 @@ The development server and installed extension have separate browser storage. Ex
 
 Videos, brand pictures, titles, and descriptions are stored in IndexedDB in your Chrome profile. The extension sends a selected video and text to a platform only when you activate its transfer controls. Authentication happens on the platform itself using your normal browser session.
 
-There are no analytics or bundled credentials. Clearing extension storage or uninstalling it deletes its local data. Keep original video files separately. Chrome Sync and a read-only phone calendar are not implemented yet.
+There are no analytics or bundled credentials. Clearing extension storage or uninstalling it deletes its local data. Keep original video files separately. The optional phone calendar uses your own HTTPS server and separate read and write keys.
+
+## Optional phone calendar
+
+Run `npm run sync` on a machine that stays available when your laptop is off. Set `CUESPRIG_READ_TOKEN` and `CUESPRIG_WRITE_TOKEN` to separate randomly generated keys. Each key must contain at least 32 letters, digits, underscores, or hyphens. To generate a key, run `node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"` twice. Keep the keys in your host's secret or environment settings.
+
+The service binds to `127.0.0.1:4318`. Put it behind your host's HTTPS reverse proxy and give it a persistent directory. Set `CUESPRIG_SYNC_PORT` to change the internal port and `CUESPRIG_SYNC_FILE` to choose the snapshot file. A service hosted only on your laptop becomes unavailable when the laptop shuts down.
+
+1. In the desktop extension calendar, choose **Phone calendar**. Enter your HTTPS address and the write key. Select **Save and sync**, then grant Chrome access to that host.
+2. Open the same address in Chrome on your phone and enter the read key. Use Chrome’s **Add to Home screen** menu to install it.
+3. The phone refreshes on launch and keeps the last snapshot available offline. The desktop sends updates when you record or edit a schedule. Check **Last synced** for freshness and use **Save and sync** to retry a failed update.
+
+The phone shows dates and times as entered on the desktop. It receives titles, brand names, posting times, and platforms. Video files, captions, brand pictures, and social account sessions stay on the desktop. Canceling or changing a schedule on a social platform requires updating its record in Cuesprig. The read key grants access to the calendar. Share it only with people you want to have access and rotate it if needed.
 
 ## Current development status
 
-This release is under active development. Remaining work includes live browser verification, automatic schedule verification, backups/import, read-only phone synchronization. Browser automation can need updates when platform interfaces change. Check the platform’s own scheduler to confirm what will publish.
+This release is under active development. Remaining work includes live browser verification, automatic schedule verification, backups/import, and live phone installation verification. Browser automation can need updates when platform interfaces change. Check the platform’s own scheduler to confirm what will publish.
 
 ## Contributing
 

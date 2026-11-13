@@ -541,3 +541,6 @@ textarea {
 #schedule-editor form > p { color:var(--muted); font-size:14px; }
 #schedule-platform { font:inherit; color:inherit; padding:10px; border:1px solid var(--border); border-radius:8px; background:white; }
 #schedule-error { color:#9e3242; }
+
+#phone-sync { width:min(560px,calc(100% - 32px)); padding:24px; }
+#phone-sync p { color:var(--muted); font-size:14px; }

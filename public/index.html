@@ -10,12 +10,14 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/styles.css">
   <script type="module" src="/app.js"></script>
+  <script type="module" src="/phone-sync.js"></script>
 </head>
 <body>
   <header class="topbar">
     <a class="brand" href="/" aria-label="Cuesprig home"><img class="brand-mark" src="/brand-mark.svg" alt="" width="40" height="44">cuesprig</a>
     <span class="topbar-caption">Good content. Right on time.</span>
     <div class="workspace-actions">
+      <button class="accounts-button" id="open-phone-sync" hidden>Phone calendar</button>
       <button class="accounts-button" id="open-accounts" disabled>Accounts</button>
       <button class="brand-switcher" id="brand-switcher" popovertarget="brand-menu" aria-label="Switch brand" disabled><span class="avatar" id="active-avatar" aria-hidden="true"></span><span id="active-brand-name">My brand</span><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button>
     </div>
@@ -51,6 +53,16 @@
       <div class="date-fields"><div class="field"><label for="schedule-date">Date</label><input type="date" id="schedule-date" required></div><div class="field"><label for="schedule-time">Time</label><input type="time" id="schedule-time" required></div></div>
       <p id="schedule-error" role="alert" hidden></p>
       <div class="platform-actions"><button type="submit" class="save-button">Save schedule record</button><button type="button" id="remove-schedule" class="today-button" hidden>Remove record</button></div>
+    </form>
+  </dialog>
+  <dialog id="phone-sync" aria-labelledby="phone-sync-title">
+    <form id="phone-sync-form">
+      <div class="accounts-header"><h2 id="phone-sync-title">Phone calendar</h2><button type="button" class="close-button" id="close-phone-sync" aria-label="Close phone calendar">×</button></div>
+      <p>Send scheduled titles, brand names, times, and platforms to your calendar server.</p>
+      <div class="field"><label for="sync-origin">Calendar server URL</label><input id="sync-origin" type="url" placeholder="https://calendar.example.com" required></div>
+      <div class="field"><label for="sync-key">Calendar write key</label><input id="sync-key" type="password" autocomplete="off" required minlength="32"></div>
+      <div class="platform-actions"><button class="save-button" type="submit">Save and sync</button><button class="today-button" type="button" id="disconnect-sync" hidden>Disconnect</button></div>
+      <p id="sync-status" role="status"></p>
     </form>
   </dialog>
   <dialog id="accounts" aria-labelledby="accounts-title">
