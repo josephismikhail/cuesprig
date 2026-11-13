@@ -536,3 +536,8 @@ textarea {
 @media(max-width:600px) { .day-post-row { grid-template-columns:minmax(0,1fr) auto; gap:8px; } .day-post-row time { grid-column:1/-1; } #day-posts { padding:16px; } }
 
 .platform-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+
+#schedule-editor { width:min(520px,calc(100% - 32px)); padding:24px; }
+#schedule-editor form > p { color:var(--muted); font-size:14px; }
+#schedule-platform { font:inherit; color:inherit; padding:10px; border:1px solid var(--border); border-radius:8px; background:white; }
+#schedule-error { color:#9e3242; }

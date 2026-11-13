@@ -43,6 +43,16 @@
     <div class="accounts-header"><div><h2 id="day-posts-title"></h2><p id="day-posts-count"></p></div><button class="close-button" id="close-day-posts" aria-label="Close posts">×</button></div>
     <div id="day-posts-list"></div>
   </dialog>
+  <dialog id="schedule-editor" aria-labelledby="schedule-editor-title">
+    <form id="schedule-form">
+      <div class="accounts-header"><h2 id="schedule-editor-title">Record schedule</h2><button type="button" class="close-button" id="close-schedule" aria-label="Close schedule editor">×</button></div>
+      <p>Enter the date and time the platform confirmed, in this device’s time zone.</p>
+      <div class="field"><label for="schedule-platform">Platform</label><select id="schedule-platform"><option value="youtube">YouTube</option><option value="instagram">Instagram</option><option value="tiktok">TikTok</option></select></div>
+      <div class="date-fields"><div class="field"><label for="schedule-date">Date</label><input type="date" id="schedule-date" required></div><div class="field"><label for="schedule-time">Time</label><input type="time" id="schedule-time" required></div></div>
+      <p id="schedule-error" role="alert" hidden></p>
+      <div class="platform-actions"><button type="submit" class="save-button">Save schedule record</button><button type="button" id="remove-schedule" class="today-button" hidden>Remove record</button></div>
+    </form>
+  </dialog>
   <dialog id="accounts" aria-labelledby="accounts-title">
     <div class="accounts-header"><h2 id="accounts-title">Accounts</h2><button class="close-button" id="close-accounts" aria-label="Close accounts">×</button></div>
     <div class="account-brand"><span class="avatar" id="accounts-avatar" aria-hidden="true"></span><strong id="accounts-brand-name"></strong>

@@ -1,5 +1,7 @@
 import { readWorkspace, storePost, storeBrand, selectBrand } from './storage.js';
 
+import { platforms, calendarEntries, withSchedule, withoutSchedule } from './schedules.js';
+
 const $ = (id) => document.getElementById(id);
 const today = new Date();
 let focusDate = new Date(today);
@@ -18,7 +20,7 @@ let brandBusy = false;
 let pictureRequest = 0;
 let returnToAccounts = false;
 const activeBrand = () => brands.find(brand => brand.id === activeBrandId);
-const brandPosts = () => posts.filter(post => post.brandId === activeBrandId);
+const brandPosts = () => posts.filter(post => post.brandId === activeBrandId).flatMap(calendarEntries);
 const dayKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const localDate = (value) => new Date(`${value}T12:00:00`);
 const readableDate = (d) => d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
@@ -185,10 +187,11 @@ const postTime = post => new Date(`${post.date}T${post.time}`).toLocaleTimeStrin
 const postTitle = post => post.title || 'Untitled video';
 function postCard(post) {
   const card = document.createElement('button'); card.className = 'post-card';
-  card.setAttribute('aria-label', `${postTitle(post)}, ${postTime(post)}, draft`);
+  const status = post.destinations.map(id => platforms[id].name).join(', ') || 'Draft';
+  card.setAttribute('aria-label', `${postTitle(post)}, ${postTime(post)}, ${status}`);
   card.title = postTitle(post);
   const name = document.createElement('strong'); name.textContent = postTitle(post);
-  const detail = document.createElement('small'); detail.textContent = `${postTime(post)} · Draft`;
+  const detail = document.createElement('small'); detail.textContent = `${postTime(post)} · ${status}`;
   card.append(name, detail);
   card.addEventListener('click', () => openDayPosts(post.date, post.id));
   return card;
@@ -204,25 +207,35 @@ function openDayPosts(date, selectedId = null) {
     const time = document.createElement('time'); time.textContent = postTime(post);
     const content = document.createElement('div');
     const title = document.createElement('h3'); title.textContent = postTitle(post);
-    const status = document.createElement('p'); status.textContent = 'Draft · Not scheduled on any platform';
+    const status = document.createElement('p');
+    status.textContent = post.destinations.length
+      ? `Scheduled (recorded by you) · ${post.destinations.map(id => platforms[id].name).join(', ')}`
+      : 'Draft · Not scheduled on any platform';
     content.append(title, status);
-    if (post.description) { const description = document.createElement('p'); description.className = 'post-description'; description.textContent = post.description; content.append(description); }
+    if (post.description) {
+      const description = document.createElement('p'); description.className = 'post-description';
+      description.textContent = post.description; content.append(description);
+    }
+    const original = posts.find(item => item.id === post.id);
+    const actions = document.createElement('div'); actions.className = 'platform-actions';
+    const record = document.createElement('button'); record.className = 'today-button'; record.textContent = 'Record schedule';
+    record.addEventListener('click', () => openScheduleEditor(original));
+    actions.append(record);
     if (globalThis.chrome?.runtime?.id) {
-      const actions = document.createElement('div'); actions.className = 'platform-actions';
-      const destinations = { youtube: ['YouTube', 'https://studio.youtube.com/'], instagram: ['Instagram', 'https://www.instagram.com/'], tiktok: ['TikTok', 'https://www.tiktok.com/tiktokstudio/upload'] };
-      for (const [platform, [label, url]] of Object.entries(destinations)) {
-        const prepare = document.createElement('button'); prepare.className = 'today-button'; prepare.textContent = `Prepare for ${label}`;
+      for (const [platform, { name, url }] of Object.entries(platforms)) {
+        const prepare = document.createElement('button'); prepare.className = 'today-button'; prepare.textContent = `Prepare for ${name}`;
         prepare.addEventListener('click', async () => {
-          await chrome.storage.local.set({ pendingPost: { id: post.id, platform } });
-          await chrome.tabs.create({ url });
-          showToast('Open the upload editor, then click the Cuesprig extension to insert your video and text.');
+          try {
+            await chrome.storage.local.set({ pendingPost: { id: post.id, platform } });
+            await chrome.tabs.create({ url });
+          } catch { showToast('Could not open the platform. Try again.'); }
         });
         actions.append(prepare);
       }
-      content.append(actions);
     }
+    content.append(actions);
     const edit = document.createElement('button'); edit.className = 'today-button'; edit.textContent = 'Edit';
-    edit.addEventListener('click', () => { $('day-posts').close(); openComposer(date, post); });
+    edit.addEventListener('click', () => { $('day-posts').close(); openComposer(original.date, original); });
     row.append(time, content, edit); list.append(row);
   }
   if (!items.length) list.textContent = 'No posts planned for this day.';
@@ -230,6 +243,48 @@ function openDayPosts(date, selectedId = null) {
   if (selectedId) list.querySelector('.selected-post')?.scrollIntoView({block:'nearest'});
 }
 $('close-day-posts').addEventListener('click', () => $('day-posts').close());
+
+let recordingPostId;
+let recordingBusy = false;
+function populateScheduleEditor() {
+  const post = posts.find(item => item.id === recordingPostId);
+  const schedule = post.schedules?.[$('schedule-platform').value];
+  $('schedule-date').value = schedule?.date ?? post.date;
+  $('schedule-time').value = schedule?.time ?? post.time;
+  $('remove-schedule').hidden = !schedule;
+  $('schedule-error').hidden = true;
+}
+function openScheduleEditor(post) {
+  recordingPostId = post.id;
+  $('schedule-platform').value = 'youtube';
+  populateScheduleEditor();
+  $('schedule-editor').showModal();
+}
+async function saveSchedule(remove) {
+  if (recordingBusy) return;
+  recordingBusy = true;
+  $('schedule-error').hidden = true;
+  try {
+    const post = posts.find(item => item.id === recordingPostId);
+    const platform = $('schedule-platform').value;
+    const updated = remove ? withoutSchedule(post, platform)
+      : withSchedule(post, platform, $('schedule-date').value, $('schedule-time').value);
+    await storePost(updated);
+    posts = posts.map(item => item.id === updated.id ? updated : item);
+    focusDate = localDate(remove ? updated.date : updated.schedules[platform].date);
+    renderCalendar();
+    $('schedule-editor').close(); $('day-posts').close();
+    showToast(remove ? 'Schedule record removed.' : 'Schedule recorded.');
+  } catch (error) {
+    $('schedule-error').textContent = error.message || 'Could not save the schedule record.';
+    $('schedule-error').hidden = false;
+  } finally { recordingBusy = false; }
+}
+$('schedule-platform').addEventListener('change', populateScheduleEditor);
+$('schedule-form').addEventListener('submit', event => { event.preventDefault(); saveSchedule(false); });
+$('remove-schedule').addEventListener('click', () => saveSchedule(true));
+$('close-schedule').addEventListener('click', () => { if (!recordingBusy) $('schedule-editor').close(); });
+$('schedule-editor').addEventListener('cancel', event => { if (recordingBusy) event.preventDefault(); });
 
 function weekStart(date) {
   const start = new Date(date);
@@ -423,14 +478,15 @@ $('post-form').addEventListener('submit', async (event) => {
   if (!file) { showError('Add a video before saving your post.'); return; }
   if (!$('post-title').value.trim()) { showError('Give your video a title.'); $('post-title').focus(); return; }
   saving = true; $('save-post').disabled = true;
-  const post = { id: editingId || crypto.randomUUID(), brandId: activeBrandId, title: $('post-title').value.trim(), description: $('post-description').value, date: $('post-date').value, time: $('post-time').value, video: file };
+  const previous = posts.find(item => item.id === editingId);
+  const post = { ...previous, id: editingId || crypto.randomUUID(), brandId: activeBrandId, title: $('post-title').value.trim(), description: $('post-description').value, date: $('post-date').value, time: $('post-time').value, video: file };
   try {
     await storePost(post);
     posts = posts.filter((item) => item.id !== post.id).concat(post);
     focusDate = localDate(post.date);
     renderCalendar();
     if (view === 'week') $('week-scroll').scrollTop = Math.max(0, Number(post.time.split(':')[0]) - 2) * 60;
-    $('composer').close(); showToast('Draft saved to your calendar.');
+    $('composer').close(); showToast(previous ? 'Post updated.' : 'Draft saved to your calendar.');
   } catch { showError('Could not save this video on your device. Browser storage may be full or unavailable. Your draft is still here.'); }
   finally { saving = false; $('save-post').disabled = false; }
 });

@@ -25,7 +25,7 @@ Keep the extracted folder in place. To update, replace the source files, run `np
 5. After the platform processes the upload, click Cuesprig again and choose **Fill title and description**. Copy buttons provide a fallback if the platform’s editor has changed.
 6. Review the content, account, date, time, and time zone in the platform. Complete scheduling there and wait for its confirmation before closing it.
 
-The companion uses Chrome’s temporary access to the tab where you click it. Upload and text controls are experimental and require verification against the live platform editors. Scheduling confirmation and publication status are not yet synchronized back into the calendar. Entries currently remain labeled as drafts.
+The companion uses Chrome’s temporary access to the tab where you click it. Upload and text controls are experimental and require verification against the live platform editors. Once the platform confirms, return to the card and choose **Record schedule**. Pick the platform and enter the confirmed date and time. Matching times share a card, and different times appear separately. Cuesprig labels this as a schedule you recorded. Use **Remove record** if you cancel it on the platform.
 
 ## Calendar
 
@@ -51,7 +51,7 @@ There are no analytics or bundled credentials. Clearing extension storage or uni
 
 ## Current development status
 
-This release is under active development. Remaining work includes live browser verification, native scheduling confirmation, backups/import, read-only phone synchronization, and release ZIP packaging. Browser automation can need updates when platform interfaces change. Check the platform’s own scheduler to confirm what will publish.
+This release is under active development. Remaining work includes live browser verification, automatic schedule verification, backups/import, read-only phone synchronization, and release ZIP packaging. Browser automation can need updates when platform interfaces change. Check the platform’s own scheduler to confirm what will publish.
 
 ## Contributing
 
