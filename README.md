@@ -1,6 +1,9 @@
-# Cuesprig
-
-A local video calendar for creators managing YouTube, Instagram, and TikTok. Plan videos in a week or month view, organize brands, and prepare uploads using your existing Chrome sign-ins.
+<p align="center">
+  <img src="public/brand-mark.svg" width="136" height="150" alt="Cuesprig logo">
+</p>
+<h1 align="center">Cuesprig</h1>
+<p align="center">Good content. Right on time.</p>
+<p align="center">A local video calendar for YouTube, Instagram, and TikTok.</p>
 
 ## Install in Chrome
 
