@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f8f9f5">
+  <meta name="description" content="A quiet place to plan your next video.">
+  <title>Frame — Your content calendar</title>
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Frame home"><span class="brand-mark" aria-hidden="true"><i></i><i></i></span>frame<span class="brand-period">.</span></a>
+    <span class="topbar-caption">A little space for your next big idea.</span>
+    <span class="local-badge"><span></span>Local workspace</span>
+  </header>
+  <main>
+    <div class="calendar-toolbar">
+      <div><p class="eyebrow">YOUR CONTENT, IN VIEW</p><h1 id="month-title"></h1></div>
+      <div class="calendar-controls"><span class="draft-count" id="draft-count">0 drafts this month</span><button class="today-button" id="today">Today</button><div class="month-nav"><button class="icon-button" id="previous" aria-label="Previous month">‹</button><button class="icon-button" id="next" aria-label="Next month">›</button></div></div>
+    </div>
+    <section class="calendar" aria-labelledby="month-title">
+      <div class="weekdays" aria-hidden="true"><span>MON</span><span>TUE</span><span>WED</span><span>THU</span><span>FRI</span><span>SAT</span><span>SUN</span></div>
+      <div class="calendar-grid" id="calendar-grid"></div>
+    </section>
+    <footer class="calendar-footer"><span><span class="legend-dot"></span>Local drafts</span><span class="footer-hint">Your next post starts with a <strong>+</strong></span><span id="timezone"></span></footer>
+  </main>
+  <button class="add-button" id="add-post" aria-label="Add a video post" title="Add a video post"><span aria-hidden="true">+</span></button>
+  <div class="toast" id="toast" role="status" hidden></div>
+
+  <dialog id="composer" aria-labelledby="composer-title">
+    <form id="post-form">
+      <div class="composer-header"><div><p class="eyebrow">MAKE ROOM FOR AN IDEA</p><h2 id="composer-title">New post<span>.</span></h2></div><button class="close-button" id="close-composer" type="button" aria-label="Close editor">×</button></div>
+      <div class="composer-body">
+        <div class="media-column">
+          <div id="drop-zone" class="drop-zone">
+            <input id="video-file" type="file" accept="video/*,.mp4,.mov,.webm,.m4v" hidden>
+            <button type="button" id="choose-video" class="choose-video"><span class="upload-illustration" aria-hidden="true"><svg viewBox="0 0 48 48"><rect x="6" y="10" width="28" height="28" rx="7"/><path d="m34 20 8-5v18l-8-5M20 18v12m-6-6h12"/></svg></span><strong>Drop your video here</strong><span>or click to choose a file</span><small>MP4, MOV, WEBM & more</small></button>
+            <div id="video-preview" hidden><video id="preview-player" controls playsinline preload="metadata"></video><button type="button" id="replace-video" class="replace-video">Change video</button></div>
+          </div>
+          <div class="file-details" id="file-details"><span class="file-icon" aria-hidden="true">↗</span><div><strong id="file-name">One video. Three possibilities.</strong><span id="file-size">Start with the video. The rest comes together.</span></div></div>
+        </div>
+        <div class="details-column">
+          <div class="field"><div class="label-row"><label for="post-title">Title for YouTube</label><span id="title-count">0 / 100</span></div><input id="post-title" placeholder="Give your video a title" maxlength="100" required autocomplete="off"></div>
+          <div class="field description-field"><label for="post-description">Description</label><textarea id="post-description" placeholder="What's the story behind this video?"></textarea><div class="description-note"><span>Shared across all three platforms</span><span class="platform-marks" aria-label="YouTube, TikTok, Instagram"><span title="YouTube">▶</span><span title="TikTok">♪</span><span title="Instagram">◎</span></span></div></div>
+          <div class="date-fields"><div class="field"><label for="post-date">Date</label><input type="date" id="post-date" required></div><div class="field"><label for="post-time">Time</label><input type="time" id="post-time" required value="17:00"></div></div>
+          <p class="form-error" id="form-error" role="alert" hidden></p>
+        </div>
+      </div>
+      <div class="composer-footer"><span><span class="legend-dot"></span>Saved on this device. Nothing is published.</span><div><button class="cancel-button" type="button" id="cancel">Cancel</button><button class="save-button" type="submit" id="save-post">Add to calendar <span aria-hidden="true">↗</span></button></div></div>
+    </form>
+  </dialog>
+</body>
+</html>
