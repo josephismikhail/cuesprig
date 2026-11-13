@@ -39,6 +39,10 @@
     </section>
   </main>
   <button class="add-button" id="add-post" aria-label="Add a video post" title="Add a video post"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M4 12h16"/></svg></button>
+  <dialog id="day-posts" aria-labelledby="day-posts-title">
+    <div class="accounts-header"><div><h2 id="day-posts-title"></h2><p id="day-posts-count"></p></div><button class="close-button" id="close-day-posts" aria-label="Close posts">×</button></div>
+    <div id="day-posts-list"></div>
+  </dialog>
   <dialog id="accounts" aria-labelledby="accounts-title">
     <div class="accounts-header"><h2 id="accounts-title">Accounts</h2><button class="close-button" id="close-accounts" aria-label="Close accounts">×</button></div>
     <div class="account-brand"><span class="avatar" id="accounts-avatar" aria-hidden="true"></span><strong id="accounts-brand-name"></strong>

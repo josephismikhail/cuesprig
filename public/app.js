@@ -181,17 +181,41 @@ $('brand-form').addEventListener('submit', async event => {
   finally { brandBusy = false; $('save-brand').disabled = false; }
 });
 
+const postTime = post => new Date(`${post.date}T${post.time}`).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+const postTitle = post => post.title || 'Untitled video';
 function postCard(post) {
-  const card = document.createElement('button');
-  card.className = 'post-card';
-  const time = new Date(`${post.date}T${post.time}`).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-  card.setAttribute('aria-label', `Edit ${post.title}, ${time}, local draft`);
-  const name = document.createElement('strong'); name.textContent = post.title;
-  const detail = document.createElement('small'); detail.textContent = `${time} · Draft`;
+  const card = document.createElement('button'); card.className = 'post-card';
+  card.setAttribute('aria-label', `${postTitle(post)}, ${postTime(post)}, draft`);
+  card.title = postTitle(post);
+  const name = document.createElement('strong'); name.textContent = postTitle(post);
+  const detail = document.createElement('small'); detail.textContent = `${postTime(post)} · Draft`;
   card.append(name, detail);
-  card.addEventListener('click', () => openComposer(post.date, post));
+  card.addEventListener('click', () => openDayPosts(post.date, post.id));
   return card;
 }
+
+function openDayPosts(date, selectedId = null) {
+  $('day-posts-title').textContent = readableDate(localDate(date));
+  const list = $('day-posts-list'); list.replaceChildren();
+  const items = brandPosts().filter(post => post.date === date).sort((a,b) => a.time.localeCompare(b.time));
+  $('day-posts-count').textContent = `${items.length} ${items.length === 1 ? 'video' : 'videos'} · ${activeBrand().name}`;
+  for (const post of items) {
+    const row = document.createElement('article'); row.className = 'day-post-row' + (post.id === selectedId ? ' selected-post' : '');
+    const time = document.createElement('time'); time.textContent = postTime(post);
+    const content = document.createElement('div');
+    const title = document.createElement('h3'); title.textContent = postTitle(post);
+    const status = document.createElement('p'); status.textContent = 'Draft · Not scheduled on any platform';
+    content.append(title, status);
+    if (post.description) { const description = document.createElement('p'); description.className = 'post-description'; description.textContent = post.description; content.append(description); }
+    const edit = document.createElement('button'); edit.className = 'today-button'; edit.textContent = 'Edit';
+    edit.addEventListener('click', () => { $('day-posts').close(); openComposer(date, post); });
+    row.append(time, content, edit); list.append(row);
+  }
+  if (!items.length) list.textContent = 'No posts planned for this day.';
+  $('day-posts').showModal();
+  if (selectedId) list.querySelector('.selected-post')?.scrollIntoView({block:'nearest'});
+}
+$('close-day-posts').addEventListener('click', () => $('day-posts').close());
 
 function weekStart(date) {
   const start = new Date(date);
@@ -248,13 +272,22 @@ function renderWeek() {
       if (!group || minute >= group.end) { group = { end: minute + 48, items: [] }; groups.push(group); }
       group.end = minute + 48; group.items.push({ post, minute });
     }
-    for (const group of groups) group.items.forEach(({ post, minute }, index) => {
-      const card = postCard(post); card.classList.add('week-post');
-      card.style.top = `${Math.min(minute, 1392) / 60 * 60}px`;
-      card.style.left = `calc(${index * 100 / group.items.length}% + 3px)`;
-      card.style.width = `calc(${100 / group.items.length}% - 6px)`;
+    for (const group of groups) {
+      const { post, minute } = group.items[0];
+      let card;
+      if (group.items.length === 1) card = postCard(post);
+      else {
+        card = document.createElement('button'); card.className = 'post-card';
+        const title = document.createElement('strong'); title.textContent = `${group.items.length} videos`;
+        const detail = document.createElement('small'); detail.textContent = `${postTime(post)} · View posts`;
+        card.append(title, detail);
+        card.setAttribute('aria-label', `${group.items.length} videos from ${postTime(post)}. View posts for ${readableDate(date)}`);
+        card.addEventListener('click', () => openDayPosts(key));
+      }
+      card.classList.add('week-post'); card.style.top = `${Math.min(minute, 1392)}px`;
+      card.style.left = '3px'; card.style.width = 'calc(100% - 6px)';
       column.append(card);
-    });
+    }
     grid.append(column);
   }
 }
@@ -275,7 +308,13 @@ function renderMonth() {
     const number = document.createElement('span'); number.className = 'day-number' + (key === dayKey(today) ? ' is-today' : ''); number.textContent = date.getDate();
     if (key === dayKey(today)) number.setAttribute('aria-current', 'date');
     button.append(number); button.addEventListener('click', () => openComposer(key)); cell.append(button);
-    brandPosts().filter(post => post.date === key).sort((a, b) => a.time.localeCompare(b.time)).forEach(post => cell.append(postCard(post)));
+    const items = brandPosts().filter(post => post.date === key).sort((a,b) => a.time.localeCompare(b.time));
+    items.slice(0, 2).forEach(post => cell.append(postCard(post)));
+    if (items.length > 2) {
+      const more = document.createElement('button'); more.className = 'more-posts'; more.textContent = `+${items.length - 2} more`;
+      more.setAttribute('aria-label', `View all ${items.length} videos for ${readableDate(date)}`);
+      more.addEventListener('click', () => openDayPosts(key)); cell.append(more);
+    }
     grid.append(cell);
   }
 }
