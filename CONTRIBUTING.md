@@ -2,7 +2,7 @@
 
 Create a feature branch and open a pull request against `main`. Keep each commit focused on one change. Include the reason for the change and describe the behavior you verified. For browser integration changes, identify the platform, the editor screen, and the interaction you tested. Use fictional data in screenshots.
 
-Run `npm run check` and `npm test` before opening a pull request. The **Tests** workflow runs both commands and attaches a built extension to the run. GitHub can squash merge a PR once tests pass and review conversations are resolved. Dependabot opens weekly PRs for updates to GitHub Actions. The app currently has no npm runtime dependencies.
+Run `npm run check` and `npm test` before opening a pull request. The **Tests** workflow runs both commands and attaches a built extension to the run. GitHub can squash merge a PR once tests pass and review conversations are resolved. Dependabot opens weekly PRs for GitHub Actions and npm development dependencies. Run `npm ci`, `npx playwright install chromium`, and `npm run test:browser` for the Chromium integration tests. The app currently has no npm runtime dependencies.
 
 ## Repository administration
 

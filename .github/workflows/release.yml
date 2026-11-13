@@ -15,7 +15,10 @@ jobs:
       - name: Check tag and package version
         run: node -e 'if (process.env.GITHUB_REF_NAME !== "v" + require("./package.json").version) process.exit(1)'
       - run: npm run check
+      - run: npm ci
       - run: npm test
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:browser
       - run: python3 scripts/package-extension.py
       - name: Create GitHub release
         env:

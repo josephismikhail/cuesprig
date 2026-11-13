@@ -21,6 +21,21 @@ export function initializeVideoTransfer() {
   return true;
 }
 
+export function receiveVideoChunk(chunk) {
+  if (!globalThis.cuesprigUpload?.input.isConnected) throw new Error('Upload dialog changed. Try again.');
+  globalThis.cuesprigUpload.chunks.push(Uint8Array.from(atob(chunk), character => character.charCodeAt(0)));
+}
+
+export function finishVideoTransfer({ name, type }) {
+  const upload = globalThis.cuesprigUpload;
+  if (!upload?.input.isConnected) throw new Error('Upload dialog closed. Try again.');
+  const transfer = new DataTransfer();
+  transfer.items.add(new File(upload.chunks, name, { type }));
+  upload.input.files = transfer.files;
+  delete globalThis.cuesprigUpload;
+  upload.input.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
 export function fillTextFields({ title, description, platform }) {
   const selectors = platform === 'youtube'
     ? ['#title-textarea #textbox', '#description-textarea #textbox']
