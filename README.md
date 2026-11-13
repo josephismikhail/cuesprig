@@ -9,10 +9,10 @@
 
 ### Windows quick setup
 
-Paste this into PowerShell:
+Copy this line into Windows Terminal, PowerShell, or Command Prompt:
 
 ```powershell
-& ([scriptblock]::Create((Invoke-RestMethod 'https://raw.githubusercontent.com/josephismikhail/cuesprig/main/install.ps1')))
+powershell.exe -NoProfile -STA -Command "Invoke-Expression (Invoke-RestMethod 'https://raw.githubusercontent.com/josephismikhail/cuesprig/main/install.ps1')"
 ```
 
 Choose the Chrome profile you want in the setup window and click **Continue**. The [installer](install.ps1) downloads and verifies the latest release, copies its folder path, and opens Extensions in the profile you chose. No Node.js or admin access is needed.
