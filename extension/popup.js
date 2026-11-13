@@ -1,3 +1,4 @@
+import { downloadVideo } from './app/download-video.js';
 import { readHandoff } from './app/handoffs.js';
 import { readWorkspace } from './app/storage.js';
 import { platforms, isTransferTab, initializeVideoTransfer, receiveVideoChunk, finishVideoTransfer, fillTextFields } from './platforms.js';
@@ -12,6 +13,8 @@ if (pending && isTransferTab(pending, tab)) {
 }
 if (post) {
   document.getElementById('transfer').hidden = false;
+  document.getElementById('download-video').disabled = !post.video;
+  document.getElementById('upload-video').disabled = !post.video;
   document.getElementById('post-title').textContent = post.title;
   document.getElementById('post-schedule').textContent = `${platforms[pending.platform].name} · ${post.date} ${post.time}`;
 }
@@ -43,6 +46,10 @@ for (const field of ['title', 'description']) {
   });
 }
 
+document.getElementById('download-video').addEventListener('click', () => {
+  if (post?.video) downloadVideo(post.video);
+});
+
 document.getElementById('upload-video').addEventListener('click', () => onPlatform(async () => {
   const button = document.getElementById('upload-video'); button.disabled = true;
   try {
@@ -50,7 +57,7 @@ document.getElementById('upload-video').addEventListener('click', () => onPlatfo
     const [{ result: ready }] = await chrome.scripting.executeScript({
       target: { tabId: tab.id }, func: initializeVideoTransfer,
     });
-    if (!ready) throw new Error('Open a single video upload editor, or choose the video manually.');
+    if (!ready) throw new Error('Open a single video upload editor, or download the video and select it in the editor.');
     const chunkSize = 256 * 1024;
     for (let offset = 0; offset < post.video.size; offset += chunkSize) {
       const bytes = new Uint8Array(await post.video.slice(offset, offset + chunkSize).arrayBuffer());

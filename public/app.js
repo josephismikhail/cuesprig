@@ -1,3 +1,4 @@
+import { downloadVideo } from './download-video.js';
 import { prepareHandoff } from './handoffs.js';
 import { readWorkspace, storePost, storeBrand, selectBrand } from './storage.js';
 
@@ -223,6 +224,12 @@ function openDayPosts(date, selectedId = null) {
     const record = document.createElement('button'); record.className = 'today-button'; record.textContent = 'Record schedule';
     record.addEventListener('click', () => openScheduleEditor(original));
     actions.append(record);
+    if (original.video) {
+      const download = document.createElement('button');
+      download.className = 'today-button'; download.textContent = 'Download video';
+      download.addEventListener('click', () => downloadVideo(original.video));
+      actions.append(download);
+    }
     if (globalThis.chrome?.runtime?.id) {
       for (const [platform, { name, url }] of Object.entries(platforms)) {
         const prepare = document.createElement('button'); prepare.className = 'today-button'; prepare.textContent = `Prepare for ${name}`;
@@ -420,6 +427,7 @@ function showError(message) { $('form-error').textContent = message; $('form-err
 function titleCounter() { $('title-count').textContent = `${$('post-title').value.length} / 100`; }
 function openComposer(date = dayKey(today), post = null, time = '17:00') {
   if (!activeBrandId) { showToast('Your workspace is still loading.'); return; }
+  $('save-and-prepare').hidden = !globalThis.chrome?.runtime?.id;
   $('composer-brand').textContent = activeBrand().name;
   $('post-form').reset(); clearPreview(); file = null;
   editingId = post?.id || null;
@@ -479,19 +487,23 @@ $('post-form').addEventListener('submit', async (event) => {
   if (saving) return;
   if (!file) { showError('Add a video before saving your post.'); return; }
   if (!$('post-title').value.trim()) { showError('Give your video a title.'); $('post-title').focus(); return; }
-  saving = true; $('save-post').disabled = true;
+  const prepare = event.submitter?.id === 'save-and-prepare';
+  saving = true; $('save-post').disabled = $('save-and-prepare').disabled = true;
   const previous = posts.find(item => item.id === editingId);
   const post = { ...previous, id: editingId || crypto.randomUUID(), brandId: activeBrandId, title: $('post-title').value.trim(), description: $('post-description').value, date: $('post-date').value, time: $('post-time').value, video: file };
   try {
     await storePost(post);
     if (post.schedules) window.dispatchEvent(new Event('cuesprig:schedules-changed'));
     posts = posts.filter((item) => item.id !== post.id).concat(post);
-    focusDate = localDate(post.date);
+    const [entry] = calendarEntries(post);
+    focusDate = localDate(entry.date);
     renderCalendar();
-    if (view === 'week') $('week-scroll').scrollTop = Math.max(0, Number(post.time.split(':')[0]) - 2) * 60;
-    $('composer').close(); showToast(previous ? 'Post updated.' : 'Draft saved to your calendar.');
+    if (view === 'week') $('week-scroll').scrollTop = Math.max(0, Number(entry.time.split(':')[0]) - 2) * 60;
+    $('composer').close();
+    if (prepare) openDayPosts(entry.date, post.id);
+    else showToast(previous ? 'Post updated.' : 'Draft saved to your calendar.');
   } catch { showError('Could not save this video on your device. Browser storage may be full or unavailable. Your draft is still here.'); }
-  finally { saving = false; $('save-post').disabled = false; }
+  finally { saving = false; $('save-post').disabled = $('save-and-prepare').disabled = false; }
 });
 
 renderCalendar();
