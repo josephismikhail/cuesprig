@@ -24,6 +24,17 @@ document.getElementById('open-calendar').addEventListener('click', async () => {
   window.close();
 });
 
+document.getElementById('record-schedule').addEventListener('click', async () => {
+  if (!post || !pending) return;
+  try {
+    const route = new URLSearchParams({ record: post.id, platform: pending.platform });
+    await chrome.tabs.create({ url: chrome.runtime.getURL(`app/index.html#${route}`) });
+    window.close();
+  } catch {
+    status.textContent = 'Could not open the schedule editor. Open the calendar and record it from the video card.';
+  }
+});
+
 async function onPlatform(action) {
   if (!post || !isTransferTab(pending, tab)) {
     status.textContent = 'Use the tab opened by Prepare for this platform, then click Cuesprig again.';

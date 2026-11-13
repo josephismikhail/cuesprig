@@ -1,6 +1,6 @@
 import { downloadVideo } from './download-video.js';
 import { prepareHandoff } from './handoffs.js';
-import { readWorkspace, storePost, storeBrand, selectBrand } from './storage.js';
+import { readWorkspace, storePost, updatePost, storeBrand, selectBrand } from './storage.js';
 
 import { platforms, calendarEntries, withSchedule, withoutSchedule } from './schedules.js';
 
@@ -262,9 +262,10 @@ function populateScheduleEditor() {
   $('remove-schedule').hidden = !schedule;
   $('schedule-error').hidden = true;
 }
-function openScheduleEditor(post) {
+function openScheduleEditor(post, platform = 'youtube') {
   recordingPostId = post.id;
-  $('schedule-platform').value = 'youtube';
+  $('schedule-platform').value = platform;
+  $('schedule-video-title').textContent = postTitle(post);
   populateScheduleEditor();
   $('schedule-editor').showModal();
 }
@@ -273,11 +274,12 @@ async function saveSchedule(remove) {
   recordingBusy = true;
   $('schedule-error').hidden = true;
   try {
-    const post = posts.find(item => item.id === recordingPostId);
     const platform = $('schedule-platform').value;
-    const updated = remove ? withoutSchedule(post, platform)
-      : withSchedule(post, platform, $('schedule-date').value, $('schedule-time').value);
-    await storePost(updated);
+    const date = $('schedule-date').value;
+    const time = $('schedule-time').value;
+    const updated = await updatePost(recordingPostId, post => remove
+      ? withoutSchedule(post, platform)
+      : withSchedule(post, platform, date, time));
     window.dispatchEvent(new Event('cuesprig:schedules-changed'));
     posts = posts.map(item => item.id === updated.id ? updated : item);
     focusDate = localDate(remove ? updated.date : updated.schedules[platform].date);
@@ -490,9 +492,10 @@ $('post-form').addEventListener('submit', async (event) => {
   const prepare = event.submitter?.id === 'save-and-prepare';
   saving = true; $('save-post').disabled = $('save-and-prepare').disabled = true;
   const previous = posts.find(item => item.id === editingId);
-  const post = { ...previous, id: editingId || crypto.randomUUID(), brandId: activeBrandId, title: $('post-title').value.trim(), description: $('post-description').value, date: $('post-date').value, time: $('post-time').value, video: file };
+  const changes = { id: editingId || crypto.randomUUID(), brandId: activeBrandId, title: $('post-title').value.trim(), description: $('post-description').value, date: $('post-date').value, time: $('post-time').value, video: file };
   try {
-    await storePost(post);
+    const post = previous ? await updatePost(previous.id, current => ({ ...current, ...changes })) : changes;
+    if (!previous) await storePost(post);
     if (post.schedules) window.dispatchEvent(new Event('cuesprig:schedules-changed'));
     posts = posts.filter((item) => item.id !== post.id).concat(post);
     const [entry] = calendarEntries(post);
@@ -512,5 +515,21 @@ try {
   posts = workspace.posts; brands = workspace.brands; activeBrandId = workspace.activeBrandId;
   renderBrands(); renderCalendar();
   $('open-accounts').disabled = false; $('brand-switcher').disabled = false;
+  const route = new URLSearchParams(window.location.hash.slice(1));
+  if (globalThis.chrome?.runtime?.id && route.has('record')) {
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+    const post = posts.find(item => item.id === route.get('record'));
+    const platform = route.get('platform');
+    if (post && brands.some(brand => brand.id === post.brandId) && Object.hasOwn(platforms, platform)) {
+      if (post.brandId !== activeBrandId) {
+        await selectBrand(post.brandId);
+        activeBrandId = post.brandId;
+        renderBrands();
+      }
+      focusDate = localDate(post.schedules?.[platform]?.date ?? post.date);
+      renderCalendar();
+      openScheduleEditor(post, platform);
+    } else showToast('That upload handoff is no longer available.');
+  }
 } catch (error) { showToast(error.message || 'Local storage is unavailable. Reload to try again.'); }
 $('week-scroll').scrollTop = 8 * 60;

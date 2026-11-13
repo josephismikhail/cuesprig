@@ -86,6 +86,25 @@ test('packaged extension saves a video and records a platform schedule in Chromi
     return { title: post.title, schedules: post.schedules, bytes: await post.video.text() };
   });
   assert.deepEqual(restored, { title: 'Example clip', schedules: saved[0].schedules, bytes: 'test video bytes' });
+  const openSchedule = async platform => {
+    const calendar = await context.newPage();
+    await calendar.goto(`${origin}/app/index.html#${new URLSearchParams({ record: handoffs[0].id, platform })}`);
+    const editor = calendar.getByRole('dialog', { name: 'Record schedule' });
+    await editor.getByText('Example clip', { exact: true }).waitFor();
+    assert.equal(await editor.getByLabel('Platform').inputValue(), platform);
+    return editor;
+  };
+  const [youtubeSchedule, tiktokSchedule] = await Promise.all([openSchedule('youtube'), openSchedule('tiktok')]);
+  await Promise.all([
+    youtubeSchedule.getByRole('button', { name: 'Save schedule record' }).click(),
+    tiktokSchedule.getByRole('button', { name: 'Save schedule record' }).click(),
+  ]);
+  await Promise.all([youtubeSchedule.waitFor({ state: 'hidden' }), tiktokSchedule.waitFor({ state: 'hidden' })]);
+  const destinations = await page.evaluate(async () => {
+    const { readWorkspace } = await import('/app/storage.js');
+    return Object.keys((await readWorkspace()).posts[0].schedules).sort();
+  });
+  assert.deepEqual(destinations, ['instagram', 'tiktok', 'youtube']);
   await page.goto(`${origin}/popup.html`);
   await page.getByRole('button', { name: 'Open calendar' }).waitFor();
   assert.deepEqual(errors, []);
