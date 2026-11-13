@@ -17,7 +17,9 @@ powershell.exe -NoProfile -STA -Command "Invoke-Expression (Invoke-RestMethod 'h
 
 Choose the Chrome profile you want in the setup window and click **Continue**. The [installer](install.ps1) downloads and verifies the latest release, copies its folder path, and opens Extensions in the profile you chose. No Node.js or admin access is needed.
 
-The first time, Chrome requires **Developer mode → Load unpacked**. Paste the copied path into the folder picker’s address bar and select that folder. Cuesprig opens its welcome screen.
+1. In the Chrome tab that opens, turn on **Developer mode** and click **Load unpacked**.
+2. In the folder picker, press **Alt+D**, paste the copied path, press **Enter**, then click **Select Folder**.
+3. In Cuesprig’s welcome tab, click **Open calendar**. You can pin the extension later from Chrome’s Extensions menu.
 
 To update, run the same command and click **Reload** on the Cuesprig card in Chrome.
 
