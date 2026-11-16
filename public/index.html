@@ -18,7 +18,6 @@
     <a class="brand" href="/" aria-label="Cuesprig home"><img class="brand-mark" src="/brand-mark.svg" alt="" width="40" height="44">cuesprig</a>
     <span class="topbar-caption">Good content. Right on time.</span>
     <div class="workspace-actions">
-      <button class="settings-button" id="open-phone-sync" aria-label="Phone calendar" title="Phone calendar" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M10 5h4"/><circle cx="12" cy="18.5" r=".7" fill="currentColor" stroke="none"/></svg></button>
       <button class="brand-switcher" id="brand-switcher" popovertarget="brand-menu" aria-label="Switch brand" disabled><span class="avatar" id="active-avatar" aria-hidden="true"></span><span id="active-brand-name">My brand</span><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button>
       <button class="settings-button" id="open-settings" aria-label="App settings" title="App settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.929,9.130 L19.277,10.186 L21.848,10.264 L21.848,13.736 L19.277,13.814 L18.929,14.870 L18.429,15.863 L20.192,17.736 L17.736,20.192 L15.863,18.429 L14.870,18.929 L13.814,19.277 L13.736,21.848 L10.264,21.848 L10.186,19.277 L9.130,18.929 L8.137,18.429 L6.264,20.192 L3.808,17.736 L5.571,15.863 L5.071,14.870 L4.723,13.814 L2.152,13.736 L2.152,10.264 L4.723,10.186 L5.071,9.130 L5.571,8.137 L3.808,6.264 L6.264,3.808 L8.137,5.571 L9.130,5.071 L10.186,4.723 L10.264,2.152 L13.736,2.152 L13.814,4.723 L14.870,5.071 L15.863,5.571 L17.736,3.808 L20.192,6.264 L18.429,8.137 Z"/><circle cx="12" cy="12" r="3.2"/></svg></button>
     </div>
@@ -59,6 +58,7 @@
   </dialog>
   <dialog id="app-settings" aria-labelledby="settings-title">
     <div class="accounts-header"><h2 id="settings-title">App settings</h2><button type="button" class="close-button" id="close-settings" aria-label="Close settings">×</button></div>
+    <button type="button" class="settings-row" id="open-phone-sync" hidden><span>Phone calendar</span><span aria-hidden="true">›</span></button>
     <button type="button" class="settings-row" id="open-backup"><span>Backup and restore</span><span aria-hidden="true">›</span></button>
   </dialog>
   <dialog id="backup-dialog" aria-labelledby="backup-title">

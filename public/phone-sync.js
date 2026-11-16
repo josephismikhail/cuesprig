@@ -69,6 +69,7 @@ if (globalThis.chrome?.runtime?.id) {
     $('sync-key').value = phoneSync?.token ?? '';
     $('sync-chatgpt').checked = phoneSync?.chatgpt ?? false;
     $('disconnect-sync').hidden = !phoneSync;
+    $('app-settings').close();
     $('phone-sync').showModal();
   });
   $('close-phone-sync').addEventListener('click', () => $('phone-sync').close());

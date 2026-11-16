@@ -564,4 +564,4 @@ textarea {
 
 .settings-button svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linejoin: round; }
 
-.settings-button[hidden] { display: none; }
+.settings-row[hidden] { display: none; }
