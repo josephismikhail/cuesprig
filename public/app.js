@@ -738,3 +738,5 @@ for (const button of document.querySelectorAll('[data-connect], [data-check], [d
     finally { button.disabled = false; if (editingBrandId === brandId) renderConnections(); }
   });
 }
+
+window.addEventListener('focus', () => { if ($('brand-editor').open) renderConnections(); });
