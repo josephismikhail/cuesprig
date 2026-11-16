@@ -28,6 +28,19 @@ test('packaged extension saves a video and records a platform schedule in Chromi
   await page.getByRole('heading', { name: 'Welcome to Cuesprig' }).waitFor();
   await page.getByRole('link', { name: 'Open calendar', exact: true }).click();
   await page.waitForURL(`${origin}/app/index.html`);
+  await page.evaluate(() => chrome.storage.local.set({
+    'connection:default:youtube': { state: 'connected', account: { id: 'UCexample', name: 'Test Channel' } },
+  }));
+  await page.getByRole('button', { name: /^Switch brand/ }).click();
+  await page.getByRole('button', { name: 'Edit brand', exact: true }).click();
+  const editor = page.getByRole('dialog', { name: 'Edit brand' });
+  await editor.getByText('Test Channel · Linked').waitFor();
+  await page.reload();
+  await editor.getByText('Test Channel · Linked').waitFor();
+  await editor.getByRole('button', { name: 'Disconnect', exact: true }).waitFor();
+  assert.equal(await editor.getByRole('button', { name: 'Connect YouTube', exact: true }).count(), 0);
+  await editor.getByRole('button', { name: 'Close brand editor' }).click();
+
   await page.getByRole('button', { name: 'Add a video post' }).click();
   await page.locator('#video-file').setInputFiles({ name: 'fixture.mp4', mimeType: 'video/mp4', buffer: Buffer.from('test video bytes') });
   await page.getByLabel('Title for YouTube').fill('Example clip');
