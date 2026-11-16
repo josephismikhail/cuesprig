@@ -570,6 +570,10 @@ textarea {
 .photo-preview-button:disabled { cursor: default; }
 .photo-preview-button[hidden], .avatar[hidden] { display: none; }
 .photo-preview-button:focus-visible { outline: 2px solid #624775; outline-offset: 4px; }
-#brand-photo-dialog { padding: 48px 16px 16px; max-width: min(90vw, 760px); max-height: 90vh; }
-#brand-photo-dialog .close-button { position: absolute; top: 10px; right: 10px; }
-#enlarged-brand-photo { display: block; max-width: 100%; max-height: 75vh; object-fit: contain; border-radius: 8px; }
+#brand-photo-dialog { border: 0; padding: 0; width: fit-content; max-width: min(90vw, 760px); max-height: 90vh; overflow: hidden; background: transparent; }
+#brand-photo-dialog .close-button { position: absolute; top: 10px; right: 10px; z-index: 1; background: rgb(255 255 255 / 92%); color: #35243f; box-shadow: 0 1px 8px rgb(0 0 0 / 18%); }
+#enlarged-brand-photo { display: block; width: auto; height: auto; max-width: min(90vw, 760px); max-height: 90vh; object-fit: contain; }
+
+.account-sign-in:disabled { cursor: default; opacity: .55; }
+
+.account-controls { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; max-width: 55%; }

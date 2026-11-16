@@ -30,6 +30,7 @@ async function calendar(posts) {
   source = source.slice(0, source.lastIndexOf('\nrenderCalendar();'));
   const context = vm.createContext({
     document: { getElementById: get, createElement: () => new Element(), addEventListener() {} },
+    readViewState: () => null,
     window: { addEventListener() {} }, Date, Intl, setTimeout, clearTimeout, inputPosts: posts, platforms, calendarEntries,
   });
   vm.runInContext(source + `

@@ -1,3 +1,4 @@
+import { readViewState, saveViewState, saveViewFile, readViewFile } from './view-state.js';
 import { downloadVideo } from './download-video.js';
 import { prepareHandoff } from './handoffs.js';
 import { readWorkspace, storePost, updatePost, storeBrand, selectBrand } from './storage.js';
@@ -6,8 +7,12 @@ import { platforms, calendarEntries, withSchedule, withoutSchedule } from './sch
 
 const $ = (id) => document.getElementById(id);
 const today = new Date();
-let focusDate = new Date(today);
-let view = 'week';
+const savedView = readViewState();
+let focusDate = savedView?.date && !Number.isNaN(Date.parse(savedView.date)) ? new Date(savedView.date) : new Date(today);
+let view = savedView?.view === 'month' ? 'month' : 'week';
+let dayPostsDate;
+let dayPostsSelection;
+let restoringView = true;
 let posts = [];
 let file = null;
 let objectUrl = null;
@@ -123,6 +128,7 @@ function openBrandEditor(brand = null, fromAccounts = false) {
   $('save-brand').textContent = brand ? 'Save brand' : 'Create brand';
   $('brand-error').hidden = true;
   updatePicturePreview();
+  renderConnections();
   $('brand-editor').showModal();
   $('brand-name').focus();
 }
@@ -252,6 +258,7 @@ if (globalThis.chrome?.runtime?.id) {
 }
 
 function openDayPosts(date, selectedId = null) {
+  dayPostsDate = date; dayPostsSelection = selectedId;
   $('day-posts-title').textContent = readableDate(localDate(date));
   const list = $('day-posts-list'); list.replaceChildren();
   const items = brandPosts().filter(post => post.date === date).sort((a,b) => a.time.localeCompare(b.time));
@@ -468,6 +475,7 @@ function attachFile(candidate) {
   }
   if (!candidate.size) { showError('This video is empty. Please choose another file.'); return; }
   clearPreview(); file = candidate;
+  if (!restoringView) saveViewFile(file).catch(() => showToast('Could not preserve this video for refresh.'));
   objectUrl = URL.createObjectURL(file);
   $('preview-player').src = objectUrl;
   $('video-preview').hidden = false;
@@ -486,6 +494,7 @@ function openComposer(date = dayKey(today), post = null, time = '17:00') {
   $('save-and-prepare').hidden = !globalThis.chrome?.runtime?.id;
   $('composer-brand').textContent = activeBrand().name;
   $('post-form').reset(); clearPreview(); file = null;
+  if (!restoringView) saveViewFile(null).catch(() => {});
   editingId = post?.id || null;
   $('composer-title').innerHTML = post ? 'Edit post<span>.</span>' : 'New post<span>.</span>';
   $('save-post').innerHTML = `${post ? 'Save changes' : 'Add to calendar'} <span aria-hidden="true">↗</span>`;
@@ -517,7 +526,9 @@ $('next').addEventListener('click', () => navigate(1));
 $('today').addEventListener('click', () => { focusDate = new Date(today); renderCalendar(); });
 for (const mode of ['week', 'month']) $('view-' + mode).addEventListener('click', () => {
   view = mode; renderCalendar();
-  if (mode === 'week') $('week-scroll').scrollTop = 8 * 60;
+  if (mode === 'week') restoringView = false;
+$('week-scroll').scrollTop = savedView?.weekScroll ?? 8 * 60;
+installViewPersistence();
 });
 $('post-title').addEventListener('input', titleCounter);
 for (const id of ['choose-video', 'replace-video']) $(id).addEventListener('click', () => $('video-file').click());
@@ -577,6 +588,7 @@ try {
   renderBrands(); renderCalendar();
   $('brand-switcher').disabled = false;
   $('add-post').disabled = false;
+  await restoreView();
   const route = new URLSearchParams(window.location.hash.slice(1));
   if (globalThis.chrome?.runtime?.id && route.has('record')) {
     history.replaceState(null, '', window.location.pathname + window.location.search);
@@ -594,10 +606,18 @@ try {
     } else showToast('That upload handoff is no longer available.');
   }
 } catch (error) { showToast(error.message || 'Local storage is unavailable. Reload to try again.'); }
-$('week-scroll').scrollTop = 8 * 60;
+restoringView = false;
+$('week-scroll').scrollTop = savedView?.weekScroll ?? 8 * 60;
+installViewPersistence();
 
 function openBrandPhoto(picture, name) {
   if (!picture) return;
+  $('enlarged-brand-photo').onload = () => {
+    const image = $('enlarged-brand-photo');
+    const scale = Math.min(760 / image.naturalWidth, innerWidth * .9 / image.naturalWidth, innerHeight * .9 / image.naturalHeight);
+    image.style.width = `${image.naturalWidth * scale}px`;
+    image.style.height = `${image.naturalHeight * scale}px`;
+  };
   $('enlarged-brand-photo').src = picture;
   $('enlarged-brand-photo').alt = `${name || 'Brand'} profile photo`;
   $('brand-photo-dialog').showModal();
@@ -611,3 +631,110 @@ $('brand-photo-dialog').addEventListener('click', event => {
   if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) event.currentTarget.close();
 });
 $('brand-photo-dialog').addEventListener('close', () => $('enlarged-brand-photo').removeAttribute('src'));
+
+function captureView() {
+  if (restoringView) return;
+  const fields = {};
+  for (const input of document.querySelectorAll('input[id], textarea[id], select[id]')) {
+    if (['file', 'password'].includes(input.type)) continue;
+    fields[input.id] = input.type === 'checkbox' ? input.checked : input.value;
+  }
+  saveViewState({ date: focusDate.toISOString(), view, fields,
+    dialogs: [...document.querySelectorAll('dialog[open]')].map(dialog => dialog.id),
+    popovers: [...document.querySelectorAll(':popover-open')].map(menu => menu.id),
+    editingId, editingBrandId, brandPicture, dayPostsDate, dayPostsSelection, recordingPostId,
+    photo: $('enlarged-brand-photo').getAttribute('src'), photoAlt: $('enlarged-brand-photo').alt,
+    weekScroll: $('week-scroll').scrollTop,
+    scroll: [...document.querySelectorAll('dialog[open]')].map(dialog => [dialog.id, dialog.scrollTop]),
+    focused: document.activeElement?.id,
+    selection: typeof document.activeElement?.selectionStart === 'number' ? [document.activeElement.selectionStart, document.activeElement.selectionEnd] : null });
+}
+async function restoreView() {
+  if (!savedView) return;
+  const dialogs = savedView.dialogs ?? [];
+  if (dialogs.includes('brand-editor')) openBrandEditor(brands.find(brand => brand.id === savedView.editingBrandId));
+  if (dialogs.includes('composer')) {
+    openComposer(savedView.fields?.['post-date'], posts.find(post => post.id === savedView.editingId));
+    const savedFile = await readViewFile().catch(() => null);
+    if (savedFile) attachFile(savedFile);
+  }
+  if (dialogs.includes('day-posts') && savedView.dayPostsDate) openDayPosts(savedView.dayPostsDate, savedView.dayPostsSelection);
+  if (dialogs.includes('schedule-editor')) {
+    const post = posts.find(item => item.id === savedView.recordingPostId);
+    if (post) openScheduleEditor(post, savedView.fields?.['schedule-platform']);
+  }
+  for (const [id, value] of Object.entries(savedView.fields ?? {})) {
+    const input = $(id);
+    if (!input || ['file', 'password'].includes(input.type)) continue;
+    if (input.type === 'checkbox') input.checked = value;
+    else input.value = value;
+  }
+  if (dialogs.includes('brand-editor')) { brandPicture = savedView.brandPicture; updatePicturePreview(); }
+  titleCounter();
+  if (dialogs.includes('phone-sync') && globalThis.chrome?.runtime?.id) {
+    const { phoneSync } = await chrome.storage.local.get('phoneSync');
+    $('sync-key').value = phoneSync?.token ?? '';
+    $('disconnect-sync').hidden = !phoneSync;
+  }
+  for (const id of dialogs) {
+    const dialog = $(id);
+    if (id === 'brand-photo-dialog' && savedView.photo) openBrandPhoto(savedView.photo, savedView.photoAlt);
+    else if (dialog instanceof HTMLDialogElement && !dialog.open && !['composer', 'brand-editor', 'day-posts', 'schedule-editor'].includes(id)) dialog.showModal();
+  }
+  for (const id of savedView.popovers ?? []) $(id)?.showPopover();
+  for (const [id, top] of savedView.scroll ?? []) if ($(id)) $(id).scrollTop = top;
+  $(savedView.focused)?.focus();
+  if (savedView.selection) $(savedView.focused)?.setSelectionRange?.(...savedView.selection);
+}
+function installViewPersistence() {
+  window.addEventListener('pagehide', captureView);
+  document.addEventListener('input', captureView);
+  document.addEventListener('change', captureView);
+  document.addEventListener('click', () => setTimeout(captureView, 0));
+  document.addEventListener('close', captureView, true);
+  document.addEventListener('toggle', captureView, true);
+  const observer = new MutationObserver(captureView);
+  for (const dialog of document.querySelectorAll('dialog')) observer.observe(dialog, { attributes: true, attributeFilter: ['open'] });
+  $('composer').addEventListener('close', () => saveViewFile(null).catch(() => {}));
+  $('week-scroll').addEventListener('scroll', captureView, { passive: true });
+}
+
+async function renderConnections() {
+  const browser = globalThis.chrome;
+  for (const platform of Object.keys(platforms)) {
+    const controls = action => document.querySelector(`[data-${action}="${platform}"]`);
+    const key = `connection:${editingBrandId}:${platform}`;
+    const connection = browser?.runtime?.id && editingBrandId ? (await browser.storage.local.get(key))[key] : null;
+    $('account-status-' + platform).textContent = !editingBrandId ? 'Save this brand to connect accounts' : !browser?.runtime?.id ? 'Open the Chrome extension to connect' : connection?.account ? `${connection.account.name} · ${connection.state === 'connected' ? 'Linked' : 'Confirm this account'}` : 'Not connected';
+    controls('connect').disabled = !editingBrandId || !browser?.runtime?.id;
+    controls('check').hidden = !connection?.tabId;
+    controls('confirm').hidden = connection?.state !== 'detected';
+    controls('disconnect').hidden = connection?.state !== 'connected';
+  }
+}
+for (const button of document.querySelectorAll('[data-connect], [data-check], [data-confirm], [data-disconnect]')) {
+  button.addEventListener('click', async () => {
+    const platform = button.dataset.connect || button.dataset.check || button.dataset.confirm || button.dataset.disconnect;
+    const brandId = editingBrandId;
+    if (!brandId || !globalThis.chrome?.runtime?.id) return;
+    button.disabled = true;
+    try {
+      const key = `connection:${brandId}:${platform}`;
+      if (button.dataset.connect || button.dataset.check) {
+        if (button.dataset.connect) {
+          const origins = [new URL(platforms[platform].url).origin + '/*'];
+          if (!await chrome.permissions.request({ origins })) throw new Error('Allow platform access to connect this account.');
+        }
+        const response = await chrome.runtime.sendMessage({ type: button.dataset.connect ? 'cuesprig:connect' : 'cuesprig:check-account', brandId, platform });
+        if (response?.error) throw new Error(response.error);
+        if (!response?.ok) throw new Error('Reload the Cuesprig extension in Chrome, then try again.');
+      } else if (button.dataset.confirm) {
+        const connection = (await chrome.storage.local.get(key))[key];
+        if (connection?.state !== 'detected') throw new Error('Check the account first.');
+        await chrome.storage.local.set({ [key]: { ...connection, state: 'connected', verifiedAt: Date.now() } });
+      } else await chrome.storage.local.remove(key);
+      $('brand-error').hidden = true;
+    } catch (error) { brandError(error.message); }
+    finally { button.disabled = false; if (editingBrandId === brandId) renderConnections(); }
+  });
+}

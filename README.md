@@ -37,6 +37,14 @@ For updates, extract the new release into the same folder and click **Reload** o
 
 Use Node.js 20 or later. Download or clone the repository, run `npm run build` in its folder, and load `dist/cuesprig` using the same Chrome steps. For a release ZIP, run `python3 scripts/package-extension.py` after the build with Python 3.11 or later.
 
+## Connect social accounts
+
+In the brand menu, select **Edit brand**. Save a new brand before connecting accounts. Click **Connect** next to YouTube, Instagram, or TikTok and approve Chrome's access request. Sign in in the platform tab, return to Cuesprig, and click **Check account**. Verify the displayed identity, then click **Use this account**. **Disconnect** removes that brand's local association.
+
+All three connections use the selected Chrome profile's browser sessions. No developer app registration, API key, or Google Cloud project is required. Detection reads account controls on the platform page and may need updating when the platform changes its layout. If detection fails, open your channel or profile in the tab Cuesprig created and check again. Live compatibility across all three platforms is still being validated.
+
+The saved association records the account you confirmed. Chrome shares social login sessions between brands in the same browser profile. Switching a Cuesprig brand does not switch the platform's signed-in account. Verify the account on the platform before uploading. A Linked status records the last verification and does not guarantee that the browser session is still signed in.
+
 ## Send a video in the background
 
 In a video’s details, choose **Send to YouTube**, **Send to Instagram**, or **Send to TikTok**. Approve access to that platform in Chrome if asked. The extension opens an inactive tab and attempts to hand off the video when it finds an upload field. Progress in Cuesprig measures the handoff to the browser editor. Use **Open platform tab** when the editor needs sign-in or review. Choose **Prepare for** to open the manual upload workflow directly.
@@ -68,7 +76,7 @@ npm run check
 
 The development calendar is available at http://127.0.0.1:4317. Tests cover title display, overlapping entries, month overflow, day details, brand isolation, URL restrictions, and the built extension’s entrypoints.
 
-The development server and installed extension have separate browser storage. To move drafts from localhost into the extension, open the brand menu in the localhost calendar, choose **Backup**, then **Download backup**. In the extension calendar, open **Backup**, choose that file, check **Replace this calendar with the backup**, and select **Restore backup**. Restore replaces the destination workspace, so download a backup there first if it already contains drafts.
+The development server and installed extension have separate browser storage. To move drafts from localhost into the extension, open **Settings** in the localhost calendar, choose **Backup and restore**, then **Download backup**. In the extension calendar, open **Settings → Backup and restore**, choose that file, check **Replace this calendar with the backup**, and select **Restore backup**. Restore replaces the destination workspace, so download a backup there first if it already contains drafts.
 
 ## Privacy and storage
 
@@ -82,7 +90,7 @@ Run `npm run sync` on a machine that stays available when your laptop is off. Se
 
 The service binds to `127.0.0.1:4318`. Put it behind your host's HTTPS reverse proxy and give it a persistent directory. Set `CUESPRIG_SYNC_PORT` to change the internal port and `CUESPRIG_SYNC_FILE` to choose the snapshot file. A service hosted only on your laptop becomes unavailable when the laptop shuts down.
 
-1. In the desktop extension calendar, choose **Phone calendar**. Enter your HTTPS address and the write key. Select **Save and sync**, then grant Chrome access to that host.
+1. In the desktop extension calendar, choose **Settings → Phone calendar**. Enter your HTTPS address and the write key. Select **Save and sync**, then grant Chrome access to that host.
 2. Open the same address in Chrome on your phone and enter the read key. Use Chrome’s **Add to Home screen** menu to install it.
 3. The phone refreshes on launch and keeps the last snapshot available offline. The desktop sends updates when you record or edit a schedule. Check **Last synced** for freshness and use **Save and sync** to retry a failed update.
 
@@ -120,6 +128,9 @@ An imported clip is a draft. Use the extension to prepare the platform upload an
 The OAuth connection uses separate credentials from the phone and desktop keys. Keep the desktop write key private. Turning off ChatGPT sync stops desktop transfers. Disable the MCP endpoint or revoke the OAuth authorization to stop ChatGPT access to the last server snapshot.
 
 ## Current development status
+
+The installer downloads the latest tagged release. Changes on `main` appear in that download only after a new release is published. Building from source uses the current checkout.
+
 
 This release is under active development. Remaining work includes live browser verification, automatic schedule verification and live phone installation verification. Browser automation can need updates when platform interfaces change. Check the platform’s own scheduler to confirm what will publish.
 
