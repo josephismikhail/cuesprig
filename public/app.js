@@ -499,7 +499,6 @@ function openComposer(date = dayKey(today), post = null, time = '17:00') {
 }
 
 $('add-post').addEventListener('click', () => openComposer(dayKey(focusDate)));
-$('open-accounts').addEventListener('click', () => $('accounts').showModal());
 $('close-accounts').addEventListener('click', () => $('accounts').close());
 for (const id of ['close-composer', 'cancel']) $(id).addEventListener('click', () => { if (!saving) $('composer').close(); });
 $('composer').addEventListener('cancel', (event) => { if (saving) event.preventDefault(); });
@@ -572,7 +571,7 @@ try {
   const workspace = await readWorkspace();
   posts = workspace.posts; brands = workspace.brands; activeBrandId = workspace.activeBrandId;
   renderBrands(); renderCalendar();
-  $('open-accounts').disabled = false; $('brand-switcher').disabled = false;
+  $('brand-switcher').disabled = false;
   $('add-post').disabled = false;
   const route = new URLSearchParams(window.location.hash.slice(1));
   if (globalThis.chrome?.runtime?.id && route.has('record')) {
