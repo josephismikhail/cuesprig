@@ -1,6 +1,6 @@
 {
   "name": "cuesprig-local-calendar",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -14,5 +14,10 @@
   },
   "devDependencies": {
     "playwright": "1.65.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "jose": "6.2.17",
+    "zod": "4.6.7"
   }
 }

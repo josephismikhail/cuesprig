@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
-const extension = fileURLToPath(new URL('../dist/cuesprig', import.meta.url));
+const extension = process.env.CUESPRIG_TEST_EXTENSION ?? fileURLToPath(new URL('../dist/cuesprig', import.meta.url));
 
 test('packaged extension saves a video and records a platform schedule in Chromium', { timeout: 45000 }, async t => {
   const context = await chromium.launchPersistentContext('', {
@@ -13,24 +16,55 @@ test('packaged extension saves a video and records a platform schedule in Chromi
   t.after(() => context.close());
   const worker = context.serviceWorkers()[0] ?? await context.waitForEvent('serviceworker', { timeout: 10000 });
   const origin = new URL('.', worker.url()).href.slice(0, -1);
-  const page = await context.newPage();
+  const welcomeUrl = `${origin}/welcome.html`;
+  const page = context.pages().find(tab => tab.url() === welcomeUrl)
+    ?? await context.waitForEvent('page', { predicate: async tab => {
+      await tab.waitForURL(welcomeUrl, { timeout: 8000 }).catch(() => {});
+      return tab.url() === welcomeUrl;
+    }, timeout: 10000 });
   page.setDefaultTimeout(8000);
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.goto(`${origin}/app/index.html`);
+  await page.getByRole('heading', { name: 'Welcome to Cuesprig' }).waitFor();
+  await page.getByRole('link', { name: 'Open calendar', exact: true }).click();
+  await page.waitForURL(`${origin}/app/index.html`);
   await page.getByRole('button', { name: 'Add a video post' }).click();
   await page.locator('#video-file').setInputFiles({ name: 'fixture.mp4', mimeType: 'video/mp4', buffer: Buffer.from('test video bytes') });
   await page.getByLabel('Title for YouTube').fill('Example clip');
   await page.getByLabel('Description', { exact: true }).fill('Example caption');
   await page.locator('#composer').getByLabel('Date', { exact: true }).fill('2027-01-20');
   await page.locator('#composer').getByLabel('Time', { exact: true }).fill('13:00');
-  await page.getByRole('button', { name: 'Add to calendar' }).click();
-  await page.getByRole('button', { name: /^Example clip,.*draft/i }).click();
+  await page.getByRole('button', { name: 'Save and prepare' }).click();
+  const [videoDownload] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Download video', exact: true }).click(),
+  ]);
+  assert.equal(videoDownload.suggestedFilename(), 'fixture.mp4');
+  assert.equal(await readFile(await videoDownload.path(), 'utf8'), 'test video bytes');
   await page.getByRole('button', { name: 'Record schedule' }).click();
   await page.getByLabel('Platform', { exact: true }).selectOption('instagram');
   await page.getByRole('button', { name: 'Save schedule record' }).click();
   await page.getByRole('button', { name: /^Example clip,.*Instagram/ }).click();
   await page.getByText('Scheduled (recorded by you) · Instagram', { exact: true }).waitFor();
+  for (const [platform, host] of [['YouTube', 'studio.youtube.com'], ['TikTok', 'www.tiktok.com']]) {
+    await context.route(`https://${host}/**`, route => route.fulfill({ contentType: 'text/html', body: '<h1>Test upload editor</h1>' }));
+    await page.getByRole('button', { name: `Prepare for ${platform}` }).click();
+    await page.waitForFunction(async expected => Object.values(await chrome.storage.session.get())
+      .some(record => record.platform === expected), platform.toLowerCase());
+  }
+  const readHandoffs = () => worker.evaluate(async () => Object.entries(await chrome.storage.session.get())
+    .filter(([key]) => key.startsWith('handoff:')).map(([, handoff]) => handoff));
+  const handoffs = await readHandoffs();
+  assert.deepEqual(handoffs.map(handoff => handoff.platform).sort(), ['tiktok', 'youtube']);
+  assert.equal(new Set(handoffs.map(handoff => handoff.id)).size, 1);
+  assert.equal(new Set(handoffs.map(handoff => handoff.tabId)).size, 2);
+  const youtube = handoffs.find(handoff => handoff.platform === 'youtube');
+  await worker.evaluate(id => chrome.tabs.remove(id), youtube.tabId);
+  await page.waitForFunction(async () => {
+    const records = Object.values(await chrome.storage.session.get());
+    return !records.some(record => record.platform === 'youtube');
+  });
+  assert.deepEqual((await readHandoffs()).map(handoff => handoff.platform), ['tiktok']);
   await page.reload();
   await page.getByRole('button', { name: 'Next week' }).waitFor();
   const saved = await page.evaluate(async () => {
@@ -57,6 +91,43 @@ test('packaged extension saves a video and records a platform schedule in Chromi
     return { title: post.title, schedules: post.schedules, bytes: await post.video.text() };
   });
   assert.deepEqual(restored, { title: 'Example clip', schedules: saved[0].schedules, bytes: 'test video bytes' });
+  const openSchedule = async platform => {
+    const calendar = await context.newPage();
+    await calendar.goto(`${origin}/app/index.html#${new URLSearchParams({ record: handoffs[0].id, platform })}`);
+    const editor = calendar.getByRole('dialog', { name: 'Record schedule' });
+    await editor.getByText('Example clip', { exact: true }).waitFor();
+    assert.equal(await editor.getByLabel('Platform').inputValue(), platform);
+    return editor;
+  };
+  const [youtubeSchedule, tiktokSchedule] = await Promise.all([openSchedule('youtube'), openSchedule('tiktok')]);
+  await Promise.all([
+    youtubeSchedule.getByRole('button', { name: 'Save schedule record' }).click(),
+    tiktokSchedule.getByRole('button', { name: 'Save schedule record' }).click(),
+  ]);
+  await Promise.all([youtubeSchedule.waitFor({ state: 'hidden' }), tiktokSchedule.waitFor({ state: 'hidden' })]);
+  const destinations = await page.evaluate(async () => {
+    const { readWorkspace } = await import('/app/storage.js');
+    return Object.keys((await readWorkspace()).posts[0].schedules).sort();
+  });
+  assert.deepEqual(destinations, ['instagram', 'tiktok', 'youtube']);
+  const receipts = await page.evaluate(async () => {
+    const { applyRemoteChanges, readWorkspace } = await import('/app/storage.js');
+    const origin = 'https://calendar.example.com';
+    const change = { id: 'test-change', kind: 'create', postId: 'chatgpt-draft', brandId: 'default',
+      title: 'Draft from ChatGPT', date: '2027-01-20', time: '14:00',
+      media: { name: 'clip.mp4', type: 'video/mp4', expiresAt: Date.now() + 60000 } };
+    let downloads = 0;
+    const download = async () => { downloads++; return new File(['fixture clip'], 'clip.mp4', { type: 'video/mp4' }); };
+    const first = await applyRemoteChanges([change], origin, download);
+    const replay = await applyRemoteChanges([change], origin, download);
+    const matches = (await readWorkspace()).posts.filter(post => post.id === change.postId);
+    return { first, replay, count: matches.length, downloads, video: await matches[0].video.text() };
+  });
+  assert.deepEqual(receipts.first, [{ id: 'test-change', status: 'applied' }]);
+  assert.deepEqual(receipts.replay, receipts.first);
+  assert.equal(receipts.count, 1);
+  assert.equal(receipts.downloads, 1);
+  assert.equal(receipts.video, 'fixture clip');
   await page.goto(`${origin}/popup.html`);
   await page.getByRole('button', { name: 'Open calendar' }).waitFor();
   assert.deepEqual(errors, []);
@@ -97,4 +168,74 @@ test('upload helpers attach intact bytes and fill the editor without submitting'
   assert.equal(await page.locator('#description-textarea').textContent(), 'Example description');
   assert.equal(await page.locator('body').getAttribute('data-changed'), 'yes');
   assert.equal(await page.locator('body').getAttribute('data-submitted'), null);
+});
+
+test('background send transfers a video while the calendar stays active', { timeout: 30000 }, async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'cuesprig-popup-test-'));
+  let context;
+  try {
+    const bundle = join(directory, 'extension');
+    await cp(extension, bundle, { recursive: true });
+    const manifestPath = join(bundle, 'manifest.json');
+    const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+    // A fixture-only grant stands in for clicking Chrome's toolbar action.
+    manifest.host_permissions = ['https://studio.youtube.com/*'];
+    await writeFile(manifestPath, JSON.stringify(manifest));
+    context = await chromium.launchPersistentContext('', {
+      channel: 'chromium',
+      args: [`--disable-extensions-except=${bundle}`, `--load-extension=${bundle}`],
+    });
+    const worker = context.serviceWorkers()[0] ?? await context.waitForEvent('serviceworker', { timeout: 10000 });
+    const origin = new URL('.', worker.url()).href;
+    const editorUrl = 'https://studio.youtube.com/';
+    await context.route(editorUrl, route => route.fulfill({
+      contentType: 'text/html',
+      body: '<input type="file" accept="video/*"><div id="title-textarea"><div id="textbox" contenteditable="true"></div></div>',
+    }));
+    const popup = await context.newPage();
+    await popup.goto(new URL('app/index.html', origin).href);
+    await popup.evaluate(async () => {
+      const { storePost } = await import('/app/storage.js');
+      const now = new Date();
+      const date = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-');
+      await storePost({
+        id: 'fixture', brandId: 'default', title: 'Fixture title', description: 'Fixture caption',
+        date, time: '13:00',
+        video: new File([new Uint8Array(300000).fill(42)], 'fixture.mp4', { type: 'video/mp4' }),
+      });
+    });
+    await popup.reload();
+    await popup.getByRole('button', { name: /^Fixture title,.*draft/i }).click();
+    await popup.bringToFront();
+    await popup.getByRole('button', { name: 'Send to YouTube', exact: true }).click();
+    await popup.getByText(/Video handed to YouTube/).waitFor({ timeout: 20000 }).catch(async error => { throw new Error(await popup.getByRole("status").allTextContents().then(items => items.join(" | ")), { cause: error }); });
+    const [tab] = await worker.evaluate(async () => chrome.tabs.query({ url: 'https://studio.youtube.com/*' }));
+    assert.ok(tab);
+    assert.equal(tab.active, false);
+    assert.equal(await worker.evaluate(async () => (await chrome.tabs.query({ active: true, currentWindow: true }))[0].url.endsWith('/app/index.html')), true);
+    const editor = context.pages().find(page => page.url() === editorUrl);
+    assert.ok(editor);
+    assert.equal(await editor.locator('input[type=file]').evaluate(input => input.files[0].size), 300000);
+    assert.equal(await editor.locator('#textbox').textContent(), 'Fixture title');
+    // The toolbar popup is not a browser tab. Emulate its active-tab query while
+    // loading it in a regular test page, and leave scripting and storage intact.
+    await popup.addInitScript(activeTab => {
+      if (location.pathname === '/popup.html') chrome.tabs.query = async () => [activeTab];
+    }, tab);
+    await popup.goto(new URL('popup.html', origin).href);
+    await popup.getByRole('button', { name: 'Insert video', exact: true }).click({ timeout: 8000 });
+    await popup.getByText(/Video handed to the platform/).waitFor({ timeout: 8000 });
+    const transferred = await editor.locator('input[type=file]').evaluate(async input => {
+      const file = input.files[0];
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      return { name: file.name, size: bytes.length, intact: bytes.every(byte => byte === 42) };
+    });
+    assert.deepEqual(transferred, { name: 'fixture.mp4', size: 300000, intact: true });
+    await popup.getByRole('button', { name: 'Fill title and description' }).click();
+    await popup.getByText(/Filled title/).waitFor();
+    assert.equal(await editor.locator('#textbox').textContent(), 'Fixture title');
+  } finally {
+    await context?.close();
+    await rm(directory, { recursive: true, force: true });
+  }
 });

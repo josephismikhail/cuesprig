@@ -1,4 +1,6 @@
-import { readWorkspace, storePost, storeBrand, selectBrand } from './storage.js';
+import { downloadVideo } from './download-video.js';
+import { prepareHandoff } from './handoffs.js';
+import { readWorkspace, storePost, updatePost, storeBrand, selectBrand } from './storage.js';
 
 import { platforms, calendarEntries, withSchedule, withoutSchedule } from './schedules.js';
 
@@ -198,6 +200,53 @@ function postCard(post) {
   return card;
 }
 
+function backgroundUploadControls(id, platform, name, url) {
+  const row = document.createElement('div'); row.className = 'platform-actions';
+  row.dataset.uploadJob = `send:${id}:${platform}`;
+  const send = document.createElement('button'); send.className = 'today-button'; send.textContent = `Send to ${name}`;
+  const review = document.createElement('button'); review.className = 'today-button';
+  review.textContent = `Open ${name} tab`; review.hidden = true;
+  const status = document.createElement('span'); status.setAttribute('role', 'status');
+  let job;
+  row.renderUpload = value => {
+    job = value;
+    status.textContent = job?.message ?? '';
+    review.hidden = !job?.tabId || job.state === 'running';
+    send.disabled = job?.state === 'running' || Boolean(job?.tabId);
+  };
+  chrome.storage.session.get(row.dataset.uploadJob).then(records => row.renderUpload(records[row.dataset.uploadJob])).catch(() => {});
+  send.addEventListener('click', async () => {
+    send.disabled = true;
+    try {
+      if (!await chrome.permissions.request({ origins: [new URL(url).origin + '/*'] })) {
+        throw new Error(`Allow ${name} access to send in the background.`);
+      }
+      status.textContent = 'Starting background upload…';
+      const result = await chrome.runtime.sendMessage({ type: 'cuesprig:send', id, platform });
+      if (!result?.ok) throw new Error(result?.error || 'Could not start background upload.');
+    } catch (error) { status.textContent = error.message; }
+    finally { send.disabled = job?.state === 'running' || Boolean(job?.tabId); }
+  });
+  review.addEventListener('click', async () => {
+    try {
+      const tab = await chrome.tabs.update(job.tabId, { active: true });
+      if (tab.windowId != null) await chrome.windows.update(tab.windowId, { focused: true });
+    } catch { status.textContent = 'The upload tab is closed.'; }
+  });
+  row.append(send, review, status);
+  return row;
+}
+
+if (globalThis.chrome?.runtime?.id) {
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== 'session') return;
+    for (const row of document.querySelectorAll('[data-upload-job]')) {
+      const change = changes[row.dataset.uploadJob];
+      if (change) row.renderUpload(change.newValue);
+    }
+  });
+}
+
 function openDayPosts(date, selectedId = null) {
   $('day-posts-title').textContent = readableDate(localDate(date));
   const list = $('day-posts-list'); list.replaceChildren();
@@ -222,17 +271,24 @@ function openDayPosts(date, selectedId = null) {
     const record = document.createElement('button'); record.className = 'today-button'; record.textContent = 'Record schedule';
     record.addEventListener('click', () => openScheduleEditor(original));
     actions.append(record);
+    if (original.video) {
+      const download = document.createElement('button');
+      download.className = 'today-button'; download.textContent = 'Download video';
+      download.addEventListener('click', () => downloadVideo(original.video));
+      actions.append(download);
+    }
     if (globalThis.chrome?.runtime?.id) {
       for (const [platform, { name, url }] of Object.entries(platforms)) {
         const prepare = document.createElement('button'); prepare.className = 'today-button'; prepare.textContent = `Prepare for ${name}`;
         prepare.addEventListener('click', async () => {
           try {
-            const tab = await chrome.tabs.create({ url, active: false });
-            await chrome.storage.local.set({ pendingPost: { id: post.id, platform, tabId: tab.id } });
-            await chrome.tabs.update(tab.id, { active: true });
+            await prepareHandoff(chrome, post.id, platform, url);
           } catch { showToast('Could not open the platform. Try again.'); }
         });
         actions.append(prepare);
+        if (original.video && !original.schedules?.[platform]) {
+          content.append(backgroundUploadControls(post.id, platform, name, url));
+        }
       }
     }
     content.append(actions);
@@ -256,9 +312,10 @@ function populateScheduleEditor() {
   $('remove-schedule').hidden = !schedule;
   $('schedule-error').hidden = true;
 }
-function openScheduleEditor(post) {
+function openScheduleEditor(post, platform = 'youtube') {
   recordingPostId = post.id;
-  $('schedule-platform').value = 'youtube';
+  $('schedule-platform').value = platform;
+  $('schedule-video-title').textContent = postTitle(post);
   populateScheduleEditor();
   $('schedule-editor').showModal();
 }
@@ -267,11 +324,12 @@ async function saveSchedule(remove) {
   recordingBusy = true;
   $('schedule-error').hidden = true;
   try {
-    const post = posts.find(item => item.id === recordingPostId);
     const platform = $('schedule-platform').value;
-    const updated = remove ? withoutSchedule(post, platform)
-      : withSchedule(post, platform, $('schedule-date').value, $('schedule-time').value);
-    await storePost(updated);
+    const date = $('schedule-date').value;
+    const time = $('schedule-time').value;
+    const updated = await updatePost(recordingPostId, post => remove
+      ? withoutSchedule(post, platform)
+      : withSchedule(post, platform, date, time));
     window.dispatchEvent(new Event('cuesprig:schedules-changed'));
     posts = posts.map(item => item.id === updated.id ? updated : item);
     focusDate = localDate(remove ? updated.date : updated.schedules[platform].date);
@@ -421,6 +479,7 @@ function showError(message) { $('form-error').textContent = message; $('form-err
 function titleCounter() { $('title-count').textContent = `${$('post-title').value.length} / 100`; }
 function openComposer(date = dayKey(today), post = null, time = '17:00') {
   if (!activeBrandId) { showToast('Your workspace is still loading.'); return; }
+  $('save-and-prepare').hidden = !globalThis.chrome?.runtime?.id;
   $('composer-brand').textContent = activeBrand().name;
   $('post-form').reset(); clearPreview(); file = null;
   editingId = post?.id || null;
@@ -478,21 +537,34 @@ window.addEventListener('drop', (event) => { if ([...event.dataTransfer.types].i
 $('post-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   if (saving) return;
-  if (!file) { showError('Add a video before saving your post.'); return; }
+  if (!file && event.submitter?.id === 'save-and-prepare') { showError('Attach a video before preparing an upload.'); return; }
   if (!$('post-title').value.trim()) { showError('Give your video a title.'); $('post-title').focus(); return; }
-  saving = true; $('save-post').disabled = true;
+  const prepare = event.submitter?.id === 'save-and-prepare';
+  saving = true; $('save-post').disabled = $('save-and-prepare').disabled = true;
   const previous = posts.find(item => item.id === editingId);
-  const post = { ...previous, id: editingId || crypto.randomUUID(), brandId: activeBrandId, title: $('post-title').value.trim(), description: $('post-description').value, date: $('post-date').value, time: $('post-time').value, video: file };
+  const changes = { id: editingId || crypto.randomUUID(), brandId: activeBrandId, title: $('post-title').value.trim(), description: $('post-description').value, date: $('post-date').value, time: $('post-time').value, video: file };
   try {
-    await storePost(post);
-    if (post.schedules) window.dispatchEvent(new Event('cuesprig:schedules-changed'));
+    const post = previous ? await updatePost(previous.id, current => ({ ...current, ...changes })) : changes;
+    if (!previous) await storePost(post);
+    window.dispatchEvent(new Event('cuesprig:schedules-changed'));
     posts = posts.filter((item) => item.id !== post.id).concat(post);
-    focusDate = localDate(post.date);
+    const [entry] = calendarEntries(post);
+    focusDate = localDate(entry.date);
     renderCalendar();
-    if (view === 'week') $('week-scroll').scrollTop = Math.max(0, Number(post.time.split(':')[0]) - 2) * 60;
-    $('composer').close(); showToast(previous ? 'Post updated.' : 'Draft saved to your calendar.');
+    if (view === 'week') $('week-scroll').scrollTop = Math.max(0, Number(entry.time.split(':')[0]) - 2) * 60;
+    $('composer').close();
+    if (prepare) openDayPosts(entry.date, post.id);
+    else showToast(previous ? 'Post updated.' : 'Draft saved to your calendar.');
   } catch { showError('Could not save this video on your device. Browser storage may be full or unavailable. Your draft is still here.'); }
-  finally { saving = false; $('save-post').disabled = false; }
+  finally { saving = false; $('save-post').disabled = $('save-and-prepare').disabled = false; }
+});
+
+window.addEventListener('cuesprig:calendar-imported', async () => {
+  try {
+    const workspace = await readWorkspace();
+    posts = workspace.posts;
+    renderCalendar();
+  } catch { showToast('Reload Cuesprig to see the synced changes.'); }
 });
 
 renderCalendar();
@@ -501,5 +573,22 @@ try {
   posts = workspace.posts; brands = workspace.brands; activeBrandId = workspace.activeBrandId;
   renderBrands(); renderCalendar();
   $('open-accounts').disabled = false; $('brand-switcher').disabled = false;
+  $('add-post').disabled = false;
+  const route = new URLSearchParams(window.location.hash.slice(1));
+  if (globalThis.chrome?.runtime?.id && route.has('record')) {
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+    const post = posts.find(item => item.id === route.get('record'));
+    const platform = route.get('platform');
+    if (post && brands.some(brand => brand.id === post.brandId) && Object.hasOwn(platforms, platform)) {
+      if (post.brandId !== activeBrandId) {
+        await selectBrand(post.brandId);
+        activeBrandId = post.brandId;
+        renderBrands();
+      }
+      focusDate = localDate(post.schedules?.[platform]?.date ?? post.date);
+      renderCalendar();
+      openScheduleEditor(post, platform);
+    } else showToast('That upload handoff is no longer available.');
+  }
 } catch (error) { showToast(error.message || 'Local storage is unavailable. Reload to try again.'); }
 $('week-scroll').scrollTop = 8 * 60;
