@@ -68,7 +68,7 @@ npm run check
 
 The development calendar is available at http://127.0.0.1:4317. Tests cover title display, overlapping entries, month overflow, day details, brand isolation, URL restrictions, and the built extension’s entrypoints.
 
-The development server and installed extension have separate browser storage. To move drafts from localhost into the extension, open the brand menu in the localhost calendar, choose **Backup**, then **Download backup**. In the extension calendar, open **Backup**, choose that file, check **Replace this calendar with the backup**, and select **Restore backup**. Restore replaces the destination workspace, so download a backup there first if it already contains drafts.
+The development server and installed extension have separate browser storage. To move drafts from localhost into the extension, open **Settings** in the localhost calendar, choose **Backup and restore**, then **Download backup**. In the extension calendar, open **Settings → Backup and restore**, choose that file, check **Replace this calendar with the backup**, and select **Restore backup**. Restore replaces the destination workspace, so download a backup there first if it already contains drafts.
 
 ## Privacy and storage
 
@@ -82,7 +82,7 @@ Run `npm run sync` on a machine that stays available when your laptop is off. Se
 
 The service binds to `127.0.0.1:4318`. Put it behind your host's HTTPS reverse proxy and give it a persistent directory. Set `CUESPRIG_SYNC_PORT` to change the internal port and `CUESPRIG_SYNC_FILE` to choose the snapshot file. A service hosted only on your laptop becomes unavailable when the laptop shuts down.
 
-1. In the desktop extension calendar, choose **Phone calendar**. Enter your HTTPS address and the write key. Select **Save and sync**, then grant Chrome access to that host.
+1. In the desktop extension calendar, choose **Settings → Phone calendar**. Enter your HTTPS address and the write key. Select **Save and sync**, then grant Chrome access to that host.
 2. Open the same address in Chrome on your phone and enter the read key. Use Chrome’s **Add to Home screen** menu to install it.
 3. The phone refreshes on launch and keeps the last snapshot available offline. The desktop sends updates when you record or edit a schedule. Check **Last synced** for freshness and use **Save and sync** to retry a failed update.
 
@@ -120,6 +120,9 @@ An imported clip is a draft. Use the extension to prepare the platform upload an
 The OAuth connection uses separate credentials from the phone and desktop keys. Keep the desktop write key private. Turning off ChatGPT sync stops desktop transfers. Disable the MCP endpoint or revoke the OAuth authorization to stop ChatGPT access to the last server snapshot.
 
 ## Current development status
+
+The installer downloads the latest tagged release. Changes on `main` appear in that download only after a new release is published. Building from source uses the current checkout.
+
 
 This release is under active development. Remaining work includes live browser verification, automatic schedule verification and live phone installation verification. Browser automation can need updates when platform interfaces change. Check the platform’s own scheduler to confirm what will publish.
 
