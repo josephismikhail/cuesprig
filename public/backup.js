@@ -44,12 +44,17 @@ export async function decodeBackup(file) {
   requireValid(brandIds.has(data.activeBrandId));
   let offset = prefixLength + metadataLength;
   const postIds = new Set();
-  const posts = data.posts.map(({ id, brandId, title, description, date, time, media, schedules }) => {
+  const posts = data.posts.map(({ id, brandId, title, description, date, time, media, schedules, thumbnail }) => {
     requireValid(identifier(id) && !postIds.has(id) && brandIds.has(brandId) && typeof title === 'string' &&
       title.trim() && title.length <= 100 && (description == null || typeof description === 'string'));
     withSchedule({}, 'youtube', date, time);
     postIds.add(id);
     let post = { id, brandId, title, description: description ?? '', date, time };
+    if (thumbnail != null) {
+      requireValid(typeof thumbnail === 'string' && thumbnail.length <= 7 * 1024 * 1024 &&
+        /^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+=*$/.test(thumbnail));
+      post.thumbnail = thumbnail;
+    }
     if (schedules != null) {
       requireValid(typeof schedules === 'object' && !Array.isArray(schedules));
       for (const [platform, schedule] of Object.entries(schedules)) {
