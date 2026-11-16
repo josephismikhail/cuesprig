@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
-const extension = fileURLToPath(new URL('../dist/cuesprig', import.meta.url));
+const extension = process.env.CUESPRIG_TEST_EXTENSION ?? fileURLToPath(new URL('../dist/cuesprig', import.meta.url));
 
 test('packaged extension saves a video and records a platform schedule in Chromium', { timeout: 45000 }, async t => {
   const context = await chromium.launchPersistentContext('', {
@@ -16,11 +16,18 @@ test('packaged extension saves a video and records a platform schedule in Chromi
   t.after(() => context.close());
   const worker = context.serviceWorkers()[0] ?? await context.waitForEvent('serviceworker', { timeout: 10000 });
   const origin = new URL('.', worker.url()).href.slice(0, -1);
-  const page = await context.newPage();
+  const welcomeUrl = `${origin}/welcome.html`;
+  const page = context.pages().find(tab => tab.url() === welcomeUrl)
+    ?? await context.waitForEvent('page', { predicate: async tab => {
+      await tab.waitForURL(welcomeUrl, { timeout: 8000 }).catch(() => {});
+      return tab.url() === welcomeUrl;
+    }, timeout: 10000 });
   page.setDefaultTimeout(8000);
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.goto(`${origin}/app/index.html`);
+  await page.getByRole('heading', { name: 'Welcome to Cuesprig' }).waitFor();
+  await page.getByRole('link', { name: 'Open calendar', exact: true }).click();
+  await page.waitForURL(`${origin}/app/index.html`);
   await page.getByRole('button', { name: 'Add a video post' }).click();
   await page.locator('#video-file').setInputFiles({ name: 'fixture.mp4', mimeType: 'video/mp4', buffer: Buffer.from('test video bytes') });
   await page.getByLabel('Title for YouTube').fill('Example clip');
@@ -103,6 +110,24 @@ test('packaged extension saves a video and records a platform schedule in Chromi
     return Object.keys((await readWorkspace()).posts[0].schedules).sort();
   });
   assert.deepEqual(destinations, ['instagram', 'tiktok', 'youtube']);
+  const receipts = await page.evaluate(async () => {
+    const { applyRemoteChanges, readWorkspace } = await import('/app/storage.js');
+    const origin = 'https://calendar.example.com';
+    const change = { id: 'test-change', kind: 'create', postId: 'chatgpt-draft', brandId: 'default',
+      title: 'Draft from ChatGPT', date: '2027-01-20', time: '14:00',
+      media: { name: 'clip.mp4', type: 'video/mp4', expiresAt: Date.now() + 60000 } };
+    let downloads = 0;
+    const download = async () => { downloads++; return new File(['fixture clip'], 'clip.mp4', { type: 'video/mp4' }); };
+    const first = await applyRemoteChanges([change], origin, download);
+    const replay = await applyRemoteChanges([change], origin, download);
+    const matches = (await readWorkspace()).posts.filter(post => post.id === change.postId);
+    return { first, replay, count: matches.length, downloads, video: await matches[0].video.text() };
+  });
+  assert.deepEqual(receipts.first, [{ id: 'test-change', status: 'applied' }]);
+  assert.deepEqual(receipts.replay, receipts.first);
+  assert.equal(receipts.count, 1);
+  assert.equal(receipts.downloads, 1);
+  assert.equal(receipts.video, 'fixture clip');
   await page.goto(`${origin}/popup.html`);
   await page.getByRole('button', { name: 'Open calendar' }).waitFor();
   assert.deepEqual(errors, []);
@@ -145,7 +170,7 @@ test('upload helpers attach intact bytes and fill the editor without submitting'
   assert.equal(await page.locator('body').getAttribute('data-submitted'), null);
 });
 
-test('the extension popup transfers a saved video to its prepared editor tab', { timeout: 30000 }, async () => {
+test('background send transfers a video while the calendar stays active', { timeout: 30000 }, async () => {
   const directory = await mkdtemp(join(tmpdir(), 'cuesprig-popup-test-'));
   let context;
   try {
@@ -167,23 +192,31 @@ test('the extension popup transfers a saved video to its prepared editor tab', {
       contentType: 'text/html',
       body: '<input type="file" accept="video/*"><div id="title-textarea"><div id="textbox" contenteditable="true"></div></div>',
     }));
-    const editor = await context.newPage();
-    await editor.goto(editorUrl);
     const popup = await context.newPage();
     await popup.goto(new URL('app/index.html', origin).href);
     await popup.evaluate(async () => {
       const { storePost } = await import('/app/storage.js');
+      const now = new Date();
+      const date = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-');
       await storePost({
         id: 'fixture', brandId: 'default', title: 'Fixture title', description: 'Fixture caption',
-        date: '2099-01-01', time: '13:00',
+        date, time: '13:00',
         video: new File([new Uint8Array(300000).fill(42)], 'fixture.mp4', { type: 'video/mp4' }),
       });
     });
+    await popup.reload();
+    await popup.getByRole('button', { name: /^Fixture title,.*draft/i }).click();
+    await popup.bringToFront();
+    await popup.getByRole('button', { name: 'Send to YouTube', exact: true }).click();
+    await popup.getByText(/Video handed to YouTube/).waitFor({ timeout: 20000 }).catch(async error => { throw new Error(await popup.getByRole("status").allTextContents().then(items => items.join(" | ")), { cause: error }); });
     const [tab] = await worker.evaluate(async () => chrome.tabs.query({ url: 'https://studio.youtube.com/*' }));
     assert.ok(tab);
-    await worker.evaluate(async id => chrome.storage.session.set({
-      [`handoff:${id}`]: { id: 'fixture', platform: 'youtube', tabId: id },
-    }), tab.id);
+    assert.equal(tab.active, false);
+    assert.equal(await worker.evaluate(async () => (await chrome.tabs.query({ active: true, currentWindow: true }))[0].url.endsWith('/app/index.html')), true);
+    const editor = context.pages().find(page => page.url() === editorUrl);
+    assert.ok(editor);
+    assert.equal(await editor.locator('input[type=file]').evaluate(input => input.files[0].size), 300000);
+    assert.equal(await editor.locator('#textbox').textContent(), 'Fixture title');
     // The toolbar popup is not a browser tab. Emulate its active-tab query while
     // loading it in a regular test page, and leave scripting and storage intact.
     await popup.addInitScript(activeTab => {
