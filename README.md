@@ -39,7 +39,7 @@ Use Node.js 20 or later. Download or clone the repository, run `npm run build` i
 
 ## Connect social accounts
 
-In the brand menu, select **Edit brand**. Save a new brand before connecting accounts. Click **Connect** next to YouTube, Instagram, or TikTok and approve Chrome's access request. Sign in in the platform tab. Use the Cuesprig panel in that tab to **Check account** and **Use this account**. If the panel is unavailable, return to **Edit brand** and use the same controls there. **Disconnect** removes that brand's local association.
+In the brand menu, select **Edit brand**. Save a new brand before connecting accounts. Click **Connect** next to YouTube, Instagram, or TikTok and approve Chrome's access request. Sign in in the platform tab. Use the Cuesprig panel in that tab to **Check account** and **Use this account**. If the panel is unavailable, return to **Edit brand** and use the same controls there. **Disconnect** replaces the connection controls after linking and removes that brand's local association. Closing an unconfirmed sign-in tab makes **Connect** available again.
 
 All three connections use the selected Chrome profile's browser sessions. No developer app registration, API key, or Google Cloud project is required. Detection reads account controls on the platform page and may need updating when the platform changes its layout. If detection fails, open your channel or profile in the tab Cuesprig created and check again. Live compatibility across all three platforms is still being validated.
 
