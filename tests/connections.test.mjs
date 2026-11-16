@@ -19,7 +19,7 @@ for (const platform of ['youtube', 'instagram', 'tiktok']) {
     };
     await openConnection(browser, 'brand-a', platform);
     assert.equal(saved[connectionKey('brand-a', platform)].state, 'pending');
-    await assert.rejects(checkConnection(browser, 'brand-a', platform), /not detected/);
+    await assert.rejects(checkConnection(browser, 'brand-a', platform), /not detected|click Profile/);
     const account = {id:'sample', name:'Sample',url:tab.url};
     browser.scripting.executeScript = async () => [{result:account}];
     assert.deepEqual(await checkConnection(browser, 'brand-a', platform), account);
@@ -31,8 +31,24 @@ for (const platform of ['youtube', 'instagram', 'tiktok']) {
 }
 
 test('public Instagram profile pages are not treated as the signed-in account', () => {
-  globalThis.document = { querySelectorAll: () => [] };
+  globalThis.document = { querySelectorAll: () => [], querySelector: () => null };
   globalThis.location = {hostname:'www.instagram.com', pathname:'/someone/'};
   try { assert.equal(detectAccount('instagram'), null); }
+  finally { delete globalThis.document; delete globalThis.location; }
+});
+
+test('Instagram recognizes Profile outside a navigation landmark', () => {
+  globalThis.location = { hostname: 'www.instagram.com', pathname: '/someone-else/' };
+  const profile = { href: 'https://www.instagram.com/My.Studio/', textContent: 'Profile',
+    getAttribute: () => null, closest: () => null, querySelector: () => null };
+  globalThis.document = { querySelectorAll: () => [profile], querySelector: () => null };
+  try { assert.equal(detectAccount('instagram')?.id, 'my.studio'); }
+  finally { delete globalThis.document; delete globalThis.location; }
+});
+
+test('Instagram recognizes an own-profile page with the Edit profile control', () => {
+  globalThis.location = { hostname: 'www.instagram.com', pathname: '/my.studio/' };
+  globalThis.document = { querySelectorAll: () => [], querySelector: () => ({ closest: () => null }) };
+  try { assert.equal(detectAccount('instagram')?.id, 'my.studio'); }
   finally { delete globalThis.document; delete globalThis.location; }
 });
