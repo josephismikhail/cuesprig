@@ -43,7 +43,7 @@ test('packaged extension saves a video and records a platform schedule in Chromi
 
   await page.getByRole('button', { name: 'Add a video post' }).click();
   await page.locator('#video-file').setInputFiles({ name: 'fixture.mp4', mimeType: 'video/mp4', buffer: Buffer.from('test video bytes') });
-  await page.getByLabel('YouTube title').fill('Example clip');
+  await page.getByLabel('YouTube Title').fill('Example clip');
   await page.getByLabel('Description', { exact: true }).fill('Example caption');
   await page.locator('#composer').getByLabel('Date', { exact: true }).fill('2027-01-20');
   await page.locator('#composer').getByLabel('Time', { exact: true }).fill('13:00');
