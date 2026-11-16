@@ -72,8 +72,8 @@ test('packaged extension saves a video and records a platform schedule in Chromi
     return (await readWorkspace()).posts.map(({ title, schedules, video }) => ({ title, schedules, size: video.size }));
   });
   assert.deepEqual(saved, [{ title: 'Example clip', schedules: { instagram: { date: '2027-01-20', time: '13:00' } }, size: 16 }]);
-  await page.getByRole('button', { name: /^Switch brand/ }).click();
-  await page.getByRole('button', { name: 'Backup', exact: true }).click();
+  await page.getByRole('button', { name: 'App settings', exact: true }).click();
+  await page.getByRole('button', { name: 'Backup and restore', exact: true }).click();
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.getByRole('button', { name: 'Download backup' }).click(),
