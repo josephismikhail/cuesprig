@@ -128,6 +128,7 @@ function openBrandEditor(brand = null, fromAccounts = false) {
   $('save-brand').textContent = brand ? 'Save brand' : 'Create brand';
   $('brand-error').hidden = true;
   updatePicturePreview();
+  renderConnections();
   $('brand-editor').showModal();
   $('brand-name').focus();
 }
@@ -696,4 +697,44 @@ function installViewPersistence() {
   for (const dialog of document.querySelectorAll('dialog')) observer.observe(dialog, { attributes: true, attributeFilter: ['open'] });
   $('composer').addEventListener('close', () => saveViewFile(null).catch(() => {}));
   $('week-scroll').addEventListener('scroll', captureView, { passive: true });
+}
+
+async function renderConnections() {
+  const browser = globalThis.chrome;
+  for (const platform of Object.keys(platforms)) {
+    const controls = action => document.querySelector(`[data-${action}="${platform}"]`);
+    const key = `connection:${editingBrandId}:${platform}`;
+    const connection = browser?.runtime?.id && editingBrandId ? (await browser.storage.local.get(key))[key] : null;
+    $('account-status-' + platform).textContent = !editingBrandId ? 'Save this brand to connect accounts' : !browser?.runtime?.id ? 'Open the Chrome extension to connect' : connection?.account ? `${connection.account.name} · ${connection.state === 'connected' ? 'Linked' : 'Confirm this account'}` : 'Not connected';
+    controls('connect').disabled = !editingBrandId || !browser?.runtime?.id;
+    controls('check').hidden = !connection?.tabId;
+    controls('confirm').hidden = connection?.state !== 'detected';
+    controls('disconnect').hidden = connection?.state !== 'connected';
+  }
+}
+for (const button of document.querySelectorAll('[data-connect], [data-check], [data-confirm], [data-disconnect]')) {
+  button.addEventListener('click', async () => {
+    const platform = button.dataset.connect || button.dataset.check || button.dataset.confirm || button.dataset.disconnect;
+    const brandId = editingBrandId;
+    if (!brandId || !globalThis.chrome?.runtime?.id) return;
+    button.disabled = true;
+    try {
+      const key = `connection:${brandId}:${platform}`;
+      if (button.dataset.connect || button.dataset.check) {
+        if (button.dataset.connect) {
+          const origins = [new URL(platforms[platform].url).origin + '/*'];
+          if (!await chrome.permissions.request({ origins })) throw new Error('Allow platform access to connect this account.');
+        }
+        const response = await chrome.runtime.sendMessage({ type: button.dataset.connect ? 'cuesprig:connect' : 'cuesprig:check-account', brandId, platform });
+        if (response?.error) throw new Error(response.error);
+        if (!response?.ok) throw new Error('Reload the Cuesprig extension in Chrome, then try again.');
+      } else if (button.dataset.confirm) {
+        const connection = (await chrome.storage.local.get(key))[key];
+        if (connection?.state !== 'detected') throw new Error('Check the account first.');
+        await chrome.storage.local.set({ [key]: { ...connection, state: 'connected', verifiedAt: Date.now() } });
+      } else await chrome.storage.local.remove(key);
+      $('brand-error').hidden = true;
+    } catch (error) { brandError(error.message); }
+    finally { button.disabled = false; if (editingBrandId === brandId) renderConnections(); }
+  });
 }

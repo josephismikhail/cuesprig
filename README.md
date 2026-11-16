@@ -37,6 +37,14 @@ For updates, extract the new release into the same folder and click **Reload** o
 
 Use Node.js 20 or later. Download or clone the repository, run `npm run build` in its folder, and load `dist/cuesprig` using the same Chrome steps. For a release ZIP, run `python3 scripts/package-extension.py` after the build with Python 3.11 or later.
 
+## Connect social accounts
+
+In the brand menu, select **Edit brand**. Save a new brand before connecting accounts. Click **Connect** next to YouTube, Instagram, or TikTok and approve Chrome's access request. Sign in in the platform tab, return to Cuesprig, and click **Check account**. Verify the displayed identity, then click **Use this account**. **Disconnect** removes that brand's local association.
+
+All three connections use the selected Chrome profile's browser sessions. No developer app registration, API key, or Google Cloud project is required. Detection reads account controls on the platform page and may need updating when the platform changes its layout. If detection fails, open your channel or profile in the tab Cuesprig created and check again. Live compatibility across all three platforms is still being validated.
+
+The saved association records the account you confirmed. Chrome shares social login sessions between brands in the same browser profile. Switching a Cuesprig brand does not switch the platform's signed-in account. Verify the account on the platform before uploading. A Linked status records the last verification and does not guarantee that the browser session is still signed in.
+
 ## Send a video in the background
 
 In a video’s details, choose **Send to YouTube**, **Send to Instagram**, or **Send to TikTok**. Approve access to that platform in Chrome if asked. The extension opens an inactive tab and attempts to hand off the video when it finds an upload field. Progress in Cuesprig measures the handoff to the browser editor. Use **Open platform tab** when the editor needs sign-in or review. Choose **Prepare for** to open the manual upload workflow directly.

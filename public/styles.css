@@ -575,3 +575,5 @@ textarea {
 #enlarged-brand-photo { display: block; width: auto; height: auto; max-width: min(90vw, 760px); max-height: 90vh; object-fit: contain; }
 
 .account-sign-in:disabled { cursor: default; opacity: .55; }
+
+.account-controls { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; max-width: 55%; }
