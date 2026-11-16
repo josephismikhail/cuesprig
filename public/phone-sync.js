@@ -1,4 +1,4 @@
-import { readWorkspace } from './storage.js';
+import { readWorkspace, applyRemoteChanges } from './storage.js';
 import { makeSnapshot, sanitizeSnapshot } from './snapshot.js';
 
 const $ = id => document.getElementById(id);
@@ -10,6 +10,44 @@ function sync() {
   const run = queue.then(async () => {
     const { phoneSync } = await chrome.storage.local.get('phoneSync');
     if (!phoneSync) return;
+    const request = (path, method, body) => fetch(`${phoneSync.origin}${path}`, {
+      method, redirect: 'error', signal: AbortSignal.timeout(15000),
+      headers: { Authorization: `Bearer ${phoneSync.token}`, 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    if (phoneSync.chatgpt) {
+      const remote = await request('/api/chatgpt-sync', 'GET');
+      if (!remote.ok) throw new Error(`ChatGPT sync failed (${remote.status}). Check your server setup.`);
+      const { changes } = await remote.json();
+      const results = await applyRemoteChanges(changes, phoneSync.origin, async ({ id, media }) => {
+        if (!/^[a-f0-9-]{36}$/.test(id) || !Number.isSafeInteger(media.size) ||
+            media.size < 1 || media.size > 100 * 1024 * 1024 ||
+            !['video/mp4', 'video/quicktime', 'video/webm'].includes(media.type)) {
+          throw new Error('Invalid video import metadata.');
+        }
+        const response = await fetch(`${phoneSync.origin}/api/chatgpt-video/${id}`, {
+          redirect: 'error', signal: AbortSignal.timeout(90000),
+          headers: { Authorization: `Bearer ${phoneSync.token}` },
+        });
+        if (!response.ok) throw new Error(`Could not download the queued video (${response.status}).`);
+        if (Number(response.headers.get('content-length')) !== media.size) {
+          await response.body?.cancel();
+          throw new Error('The imported video size did not match.');
+        }
+        const blob = await response.blob();
+        if (blob.size !== media.size) throw new Error('The imported video size did not match.');
+        return new File([blob], media.name, { type: media.type });
+      });
+      const { posts, brands } = await readWorkspace();
+      if (results.some(result => result.status === 'applied')) window.dispatchEvent(new Event('cuesprig:calendar-imported'));
+      const workspace = {
+        brands: brands.map(({ id, name }) => ({ id, name })),
+        posts: posts.map(({ id, brandId, title, description, date, time, schedules }) =>
+          ({ id, brandId, title, description: description ?? '', date, time, schedules: schedules ?? {} })),
+      };
+      const response = await request('/api/chatgpt-sync', 'PUT', { workspace, results });
+      if (!response.ok) throw new Error(`Could not sync calendar to ChatGPT (${response.status}).`);
+    }
     const snapshot = sanitizeSnapshot(makeSnapshot(await readWorkspace()));
     const response = await fetch(`${phoneSync.origin}/api/calendar`, {
       method: 'PUT', redirect: 'error', signal: AbortSignal.timeout(15000),
@@ -29,6 +67,7 @@ if (globalThis.chrome?.runtime?.id) {
     const { phoneSync } = await chrome.storage.local.get('phoneSync');
     $('sync-origin').value = phoneSync?.origin ?? '';
     $('sync-key').value = phoneSync?.token ?? '';
+    $('sync-chatgpt').checked = phoneSync?.chatgpt ?? false;
     $('disconnect-sync').hidden = !phoneSync;
     $('phone-sync').showModal();
   });
@@ -48,7 +87,7 @@ if (globalThis.chrome?.runtime?.id) {
       const origin = `${url.origin}/*`;
       if (!await chrome.permissions.request({ origins: [origin] })) throw new Error('Allow access to your calendar server to sync.');
       const { phoneSync } = await chrome.storage.local.get('phoneSync');
-      await chrome.storage.local.set({ phoneSync: { origin: url.origin, token } });
+      await chrome.storage.local.set({ phoneSync: { origin: url.origin, token, chatgpt: $('sync-chatgpt').checked } });
       if (phoneSync && phoneSync.origin !== url.origin) await chrome.permissions.remove({ origins: [`${phoneSync.origin}/*`] });
       $('disconnect-sync').hidden = false;
       status('Syncing…');
@@ -70,4 +109,14 @@ if (globalThis.chrome?.runtime?.id) {
     finally { busy = false; }
   });
   window.addEventListener('cuesprig:schedules-changed', sync);
+  let lastOpenedSync = 0;
+  async function syncOnOpen() {
+    if (document.visibilityState !== 'visible' || Date.now() - lastOpenedSync < 5000) return;
+    lastOpenedSync = Date.now();
+    const { phoneSync } = await chrome.storage.local.get('phoneSync');
+    if (phoneSync?.chatgpt) await sync();
+  }
+  const checkForImports = () => syncOnOpen().catch(error => status(error.message));
+  document.addEventListener('visibilitychange', checkForImports);
+  checkForImports();
 }

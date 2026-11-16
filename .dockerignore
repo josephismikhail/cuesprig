@@ -1,0 +1,15 @@
+**
+!package.json
+!package-lock.json
+!sync/
+!sync/**
+!phone/
+!phone/**
+!public/
+!public/**
+**/.env
+**/.env.*
+**/*.mp4
+**/*.mov
+**/*.webm
+**/*.cuesprig
