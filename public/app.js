@@ -565,6 +565,7 @@ try {
   posts = workspace.posts; brands = workspace.brands; activeBrandId = workspace.activeBrandId;
   renderBrands(); renderCalendar();
   $('open-accounts').disabled = false; $('brand-switcher').disabled = false;
+  $('add-post').disabled = false;
   const route = new URLSearchParams(window.location.hash.slice(1));
   if (globalThis.chrome?.runtime?.id && route.has('record')) {
     history.replaceState(null, '', window.location.pathname + window.location.search);
