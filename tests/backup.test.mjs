@@ -29,3 +29,10 @@ test('truncated backups and invalid workspace references are rejected', async ()
   await assert.rejects(decodeBackup(encodeBackup({ ...workspace, activeBrandId: 'missing' })));
   await assert.rejects(decodeBackup(encodeBackup({ ...workspace, posts: [...workspace.posts, ...workspace.posts] })));
 });
+
+test('backup preserves a selected thumbnail', async () => {
+  const thumbnail = 'data:image/png;base64,aGVsbG8=';
+  const data = { ...workspace, posts: workspace.posts.map(post => ({ ...post, thumbnail })) };
+  const result = await decodeBackup(encodeBackup(data));
+  assert.equal(result.posts[0].thumbnail, thumbnail);
+});

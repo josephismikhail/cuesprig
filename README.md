@@ -54,7 +54,7 @@ Finish scheduling on the platform and record its confirmation in Cuesprig.
 ## Prepare a video
 
 1. Add a video, YouTube title, description, date, and time to your calendar.
-2. Select **Save and prepare** or open a saved video’s card. Choose **Prepare for YouTube**, **Prepare for Instagram**, or **Prepare for TikTok**.
+2. Select **Schedule Post**, then open the saved video’s card. Choose **Prepare for YouTube**, **Prepare for Instagram**, or **Prepare for TikTok**.
 3. Use the tab Cuesprig opens. Each platform tab keeps its own handoff until you close it or restart Chrome. Sign in on the platform and verify the intended account. Open its upload editor.
 4. Click the pinned Cuesprig extension. Choose **Insert video** and keep the popup open until the handoff finishes. If the editor rejects the handoff, use **Download video instead** and select the downloaded file in the platform’s file picker.
 5. After the platform processes the upload, click Cuesprig again and choose **Fill title and description**. Copy buttons provide a fallback if the platform’s editor has changed.
@@ -63,6 +63,8 @@ Finish scheduling on the platform and record its confirmation in Cuesprig.
 The companion uses Chrome’s temporary access to the tab where you click it. Upload and text controls are experimental and require verification against the live platform editors. Once the platform confirms, choose **Record confirmed schedule** in the Cuesprig toolbar popup. You can also open the calendar card and choose **Record schedule**. Pick the platform and enter the confirmed date and time. Matching times share a card, and different times appear separately. Cuesprig labels this as a schedule you recorded. Use **Remove record** if you cancel it on the platform.
 
 ## Calendar
+
+The post editor supports an uploaded thumbnail or a frame captured from the video. Thumbnails are saved locally with the post and included in backups. Applying them to social platform uploads is not yet automated. **Schedule Post** saves the planned post locally; platform scheduling still requires the confirmation steps above.
 
 The title on each card is the YouTube title. Week view groups overlapping videos into a readable **View posts** card. Month view displays two videos per day and a **+N more** button. Open either to see the full day’s list and edit a video. Each brand has its own calendar and optional profile picture.
 

@@ -124,7 +124,7 @@
 
   <dialog id="composer" aria-labelledby="composer-title">
     <form id="post-form">
-      <div class="composer-header"><div><h2 id="composer-title">New post<span>.</span></h2><span class="composer-brand" id="composer-brand"></span></div><button class="close-button" id="close-composer" type="button" aria-label="Close editor">×</button></div>
+      <div class="composer-header"><div><h2 id="composer-title">New post<span>.</span></h2><div class="composer-brand"><span class="avatar" id="composer-avatar" aria-hidden="true"></span><span id="composer-brand"></span><label class="sr-only" for="composer-brand-select">Posting brand</label><select id="composer-brand-select" aria-label="Posting brand" hidden></select></div></div><button class="close-button" id="close-composer" type="button" aria-label="Close editor">×</button></div>
       <div class="composer-body">
         <div class="media-column">
           <div id="drop-zone" class="drop-zone">
@@ -132,16 +132,22 @@
             <button type="button" id="choose-video" class="choose-video"><span class="upload-illustration" aria-hidden="true"><svg viewBox="0 0 48 48"><rect x="6" y="10" width="28" height="28" rx="7"/><path d="m34 20 8-5v18l-8-5M20 18v12m-6-6h12"/></svg></span><strong>Drop your video here</strong><span>or click to choose a file</span><small>MP4, MOV, WEBM & more</small></button>
             <div id="video-preview" hidden><video id="preview-player" controls playsinline preload="metadata"></video><button type="button" id="replace-video" class="replace-video">Change video</button></div>
           </div>
+          <section class="thumbnail-editor" aria-label="Video thumbnail">
+            <img id="thumbnail-preview" alt="Selected video thumbnail" hidden>
+            <div><button type="button" class="picture-button" id="upload-thumbnail">Upload thumbnail</button><button type="button" class="picture-button" id="capture-thumbnail" disabled>Use current frame</button><button type="button" class="text-button" id="remove-thumbnail" hidden>Remove</button></div>
+            <input type="file" id="thumbnail-file" accept="image/png,image/jpeg,image/webp" hidden>
+            <p>Pause the video on the frame you want, then choose Use current frame.</p>
+          </section>
           <div class="file-details" id="file-details"><span class="file-icon" aria-hidden="true">↗</span><div><strong id="file-name">One video. Three possibilities.</strong><span id="file-size">Start with the video. The rest comes together.</span></div></div>
         </div>
         <div class="details-column">
-          <div class="field"><div class="label-row"><label for="post-title">Title for YouTube</label><span id="title-count">0 / 100</span></div><input id="post-title" placeholder="Give your video a title" maxlength="100" required autocomplete="off"></div>
+          <div class="field"><div class="label-row"><label for="post-title">YouTube title</label><span id="title-count">0 / 100</span></div><input id="post-title" placeholder="Give your video a title" maxlength="100" required autocomplete="off"></div>
           <div class="field description-field"><label for="post-description">Description</label><textarea id="post-description" placeholder="What's the story behind this video?"></textarea><div class="description-note"><span>Shared across all three platforms</span><span class="platform-marks" aria-label="YouTube, TikTok, Instagram"><span title="YouTube">▶</span><span title="TikTok">♪</span><span title="Instagram">◎</span></span></div></div>
           <div class="date-fields"><div class="field"><label for="post-date">Date</label><input type="date" id="post-date" required></div><div class="field"><label for="post-time">Time</label><input type="time" id="post-time" required value="17:00"></div></div>
           <p class="form-error" id="form-error" role="alert" hidden></p>
         </div>
       </div>
-      <div class="composer-footer"><span><span class="legend-dot"></span>Saved on this device. Nothing is published.</span><div><button class="cancel-button" type="button" id="cancel">Cancel</button><button class="today-button" type="submit" id="save-and-prepare" hidden>Save and prepare</button><button class="save-button" type="submit" id="save-post">Add to calendar <span aria-hidden="true">↗</span></button></div></div>
+      <div class="composer-footer"><span><span class="legend-dot"></span>Saved on this device. Nothing is published.</span><div><button class="cancel-button" type="button" id="cancel">Cancel</button><button class="save-button" type="submit" id="save-post">Schedule Post</button></div></div>
     </form>
   </dialog>
 </body>

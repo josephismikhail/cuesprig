@@ -18,6 +18,9 @@ let posts = [];
 let file = null;
 let objectUrl = null;
 let editingId = null;
+let postingBrandId = null;
+let thumbnail = null;
+let thumbnailRequest = 0;
 let saving = false;
 let toastTimer;
 let brands = [];
@@ -476,6 +479,8 @@ function attachFile(candidate) {
     showError('Choose a video file, such as MP4, MOV, or WEBM.'); return;
   }
   if (!candidate.size) { showError('This video is empty. Please choose another file.'); return; }
+  if (file && candidate !== file) { thumbnail = null; renderThumbnail(); }
+  $('capture-thumbnail').disabled = true;
   clearPreview(); file = candidate;
   if (!restoringView) saveViewFile(file).catch(() => showToast('Could not preserve this video for refresh.'));
   objectUrl = URL.createObjectURL(file);
@@ -493,13 +498,16 @@ function showError(message) { $('form-error').textContent = message; $('form-err
 function titleCounter() { $('title-count').textContent = `${$('post-title').value.length} / 100`; }
 function openComposer(date = dayKey(today), post = null, time = '17:00') {
   if (!activeBrandId) { showToast('Your workspace is still loading.'); return; }
-  $('save-and-prepare').hidden = !globalThis.chrome?.runtime?.id;
-  $('composer-brand').textContent = activeBrand().name;
+  postingBrandId = post?.brandId || activeBrandId;
+  renderPostingBrand();
+  thumbnail = post?.thumbnail || null;
+  renderThumbnail();
+  $('capture-thumbnail').disabled = true;
   $('post-form').reset(); clearPreview(); file = null;
   if (!restoringView) saveViewFile(null).catch(() => {});
   editingId = post?.id || null;
   $('composer-title').innerHTML = post ? 'Edit post<span>.</span>' : 'New post<span>.</span>';
-  $('save-post').innerHTML = `${post ? 'Save changes' : 'Add to calendar'} <span aria-hidden="true">↗</span>`;
+  $('save-post').textContent = post ? 'Save changes' : 'Schedule Post';
   $('post-title').value = post?.title || '';
   $('post-description').value = post?.description || '';
   $('post-date').value = date;
@@ -517,7 +525,7 @@ $('add-post').addEventListener('click', () => openComposer(dayKey(focusDate)));
 $('close-accounts').addEventListener('click', () => $('accounts').close());
 for (const id of ['close-composer', 'cancel']) $(id).addEventListener('click', () => { if (!saving) $('composer').close(); });
 $('composer').addEventListener('cancel', (event) => { if (saving) event.preventDefault(); });
-$('composer').addEventListener('close', clearPreview);
+$('composer').addEventListener('close', () => { thumbnailRequest++; clearPreview(); });
 function navigate(direction) {
   if (view === 'week') focusDate.setDate(focusDate.getDate() + direction * 7);
   else focusDate = new Date(focusDate.getFullYear(), focusDate.getMonth() + direction, 1);
@@ -528,9 +536,7 @@ $('next').addEventListener('click', () => navigate(1));
 $('today').addEventListener('click', () => { focusDate = new Date(today); renderCalendar(); });
 for (const mode of ['week', 'month']) $('view-' + mode).addEventListener('click', () => {
   view = mode; renderCalendar();
-  if (mode === 'week') restoringView = false;
-$('week-scroll').scrollTop = savedView?.weekScroll ?? 8 * 60;
-installViewPersistence();
+  if (mode === 'week') $('week-scroll').scrollTop = 8 * 60;
 });
 $('post-title').addEventListener('input', titleCounter);
 for (const id of ['choose-video', 'replace-video']) $(id).addEventListener('click', () => $('video-file').click());
@@ -553,26 +559,24 @@ window.addEventListener('drop', (event) => { if ([...event.dataTransfer.types].i
 $('post-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   if (saving) return;
-  if (!file && event.submitter?.id === 'save-and-prepare') { showError('Attach a video before preparing an upload.'); return; }
   if (!$('post-title').value.trim()) { showError('Give your video a title.'); $('post-title').focus(); return; }
-  const prepare = event.submitter?.id === 'save-and-prepare';
-  saving = true; $('save-post').disabled = $('save-and-prepare').disabled = true;
+  saving = true; $('save-post').disabled = true;
   const previous = posts.find(item => item.id === editingId);
-  const changes = { id: editingId || crypto.randomUUID(), brandId: activeBrandId, title: $('post-title').value.trim(), description: $('post-description').value, date: $('post-date').value, time: $('post-time').value, video: file };
+  const changes = { id: editingId || crypto.randomUUID(), brandId: postingBrandId, thumbnail, title: $('post-title').value.trim(), description: $('post-description').value, date: $('post-date').value, time: $('post-time').value, video: file };
   try {
     const post = previous ? await updatePost(previous.id, current => ({ ...current, ...changes })) : changes;
     if (!previous) await storePost(post);
     window.dispatchEvent(new Event('cuesprig:schedules-changed'));
     posts = posts.filter((item) => item.id !== post.id).concat(post);
     const [entry] = calendarEntries(post);
+    if (post.brandId !== activeBrandId) { await selectBrand(post.brandId); activeBrandId = post.brandId; renderBrands(); }
     focusDate = localDate(entry.date);
     renderCalendar();
     if (view === 'week') $('week-scroll').scrollTop = Math.max(0, Number(entry.time.split(':')[0]) - 2) * 60;
     $('composer').close();
-    if (prepare) openDayPosts(entry.date, post.id);
-    else showToast(previous ? 'Post updated.' : 'Draft saved to your calendar.');
+    showToast(previous ? 'Post updated.' : 'Draft saved to your calendar.');
   } catch { showError('Could not save this video on your device. Browser storage may be full or unavailable. Your draft is still here.'); }
-  finally { saving = false; $('save-post').disabled = $('save-and-prepare').disabled = false; }
+  finally { saving = false; $('save-post').disabled = false; }
 });
 
 window.addEventListener('cuesprig:calendar-imported', async () => {
@@ -644,7 +648,7 @@ function captureView() {
   saveViewState({ date: focusDate.toISOString(), view, fields,
     dialogs: [...document.querySelectorAll('dialog[open]')].map(dialog => dialog.id),
     popovers: [...document.querySelectorAll(':popover-open')].map(menu => menu.id),
-    editingId, editingBrandId, brandPicture, dayPostsDate, dayPostsSelection, recordingPostId,
+    postingBrandId, thumbnail, editingId, editingBrandId, brandPicture, dayPostsDate, dayPostsSelection, recordingPostId,
     photo: $('enlarged-brand-photo').getAttribute('src'), photoAlt: $('enlarged-brand-photo').alt,
     weekScroll: $('week-scroll').scrollTop,
     scroll: [...document.querySelectorAll('dialog[open]')].map(dialog => [dialog.id, dialog.scrollTop]),
@@ -659,6 +663,9 @@ async function restoreView() {
     openComposer(savedView.fields?.['post-date'], posts.find(post => post.id === savedView.editingId));
     const savedFile = await readViewFile().catch(() => null);
     if (savedFile) attachFile(savedFile);
+    postingBrandId = brands.some(brand => brand.id === savedView.postingBrandId) ? savedView.postingBrandId : postingBrandId;
+    renderPostingBrand();
+    thumbnail = savedView.thumbnail || null; renderThumbnail();
   }
   if (dialogs.includes('day-posts') && savedView.dayPostsDate) openDayPosts(savedView.dayPostsDate, savedView.dayPostsSelection);
   if (dialogs.includes('schedule-editor')) {
@@ -770,3 +777,61 @@ if (globalThis.chrome?.runtime?.id) {
     }
   });
 }
+
+function renderPostingBrand() {
+  const brand = brands.find(item => item.id === postingBrandId) || activeBrand();
+  renderAvatar($('composer-avatar'), brand);
+  $('composer-brand').textContent = brand.name;
+  const select = $('composer-brand-select');
+  select.replaceChildren(...brands.map(item => new Option(item.name, item.id)));
+  select.value = brand.id;
+  select.hidden = brands.length < 2;
+  $('composer-brand').hidden = brands.length > 1;
+}
+$('composer-brand-select').addEventListener('change', () => {
+  postingBrandId = $('composer-brand-select').value;
+  renderPostingBrand();
+});
+function renderThumbnail() {
+  thumbnailRequest++;
+  $('thumbnail-preview').hidden = !thumbnail;
+  if (thumbnail) $('thumbnail-preview').src = thumbnail;
+  else $('thumbnail-preview').removeAttribute('src');
+  $('remove-thumbnail').hidden = !thumbnail;
+}
+$('upload-thumbnail').addEventListener('click', () => $('thumbnail-file').click());
+$('thumbnail-file').addEventListener('change', async () => {
+  const image = $('thumbnail-file').files[0];
+  if (!image) return;
+  if (!['image/png', 'image/jpeg', 'image/webp'].includes(image.type) || image.size > 5 * 1024 * 1024) {
+    showError('Choose a PNG, JPG, or WebP thumbnail smaller than 5 MB.'); return;
+  }
+  const request = ++thumbnailRequest;
+  try {
+    const value = await new Promise((resolve, reject) => {
+      const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(image);
+    });
+    const decoded = new Image(); decoded.src = value; await decoded.decode();
+    if (request !== thumbnailRequest) return;
+    thumbnail = value; renderThumbnail(); captureView();
+  } catch { showError('This thumbnail could not be opened.'); }
+});
+$('remove-thumbnail').addEventListener('click', () => { thumbnail = null; renderThumbnail(); $('thumbnail-file').value = ''; });
+function updateCaptureButton() {
+  const video = $('preview-player');
+  $('capture-thumbnail').disabled = video.readyState < 2 || !video.videoWidth;
+}
+for (const event of ['loadeddata', 'emptied', 'error']) $('preview-player').addEventListener(event, updateCaptureButton);
+$('capture-thumbnail').addEventListener('click', () => {
+  const video = $('preview-player');
+  if (video.readyState < 2 || !video.videoWidth) return;
+  try {
+    video.pause();
+    const canvas = document.createElement('canvas');
+    const scale = Math.min(1, 1920 / video.videoWidth);
+    canvas.width = Math.round(video.videoWidth * scale);
+    canvas.height = Math.round(video.videoHeight * scale);
+    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+    thumbnail = canvas.toDataURL('image/jpeg', .9); renderThumbnail(); captureView();
+  } catch { showError('Could not capture this frame. Try uploading a thumbnail.'); }
+});
