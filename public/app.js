@@ -51,6 +51,9 @@ function renderBrands() {
   $('brand-switcher').setAttribute('aria-label', `Switch brand, current brand: ${brand.name}`);
   $('accounts-brand-name').textContent = brand.name;
   renderAvatar($('active-avatar'), brand);
+  renderAvatar($('active-photo'), brand);
+  $('preview-active-photo').hidden = !brand.picture;
+  $('active-avatar').hidden = Boolean(brand.picture);
   renderAvatar($('accounts-avatar'), brand);
   for (const listId of ['brand-list', 'account-brand-list']) {
     $(listId).replaceChildren();
@@ -127,6 +130,7 @@ function openBrandEditor(brand = null, fromAccounts = false) {
 function updatePicturePreview() {
   renderAvatar($('brand-picture-preview'), { name: $('brand-name').value, picture: brandPicture });
   $('remove-brand-picture').hidden = !brandPicture;
+  $('preview-editor-photo').disabled = !brandPicture;
 }
 
 function brandError(message) { $('brand-error').textContent = message; $('brand-error').hidden = false; }
@@ -591,3 +595,19 @@ try {
   }
 } catch (error) { showToast(error.message || 'Local storage is unavailable. Reload to try again.'); }
 $('week-scroll').scrollTop = 8 * 60;
+
+function openBrandPhoto(picture, name) {
+  if (!picture) return;
+  $('enlarged-brand-photo').src = picture;
+  $('enlarged-brand-photo').alt = `${name || 'Brand'} profile photo`;
+  $('brand-photo-dialog').showModal();
+}
+$('preview-active-photo').addEventListener('click', () => openBrandPhoto(activeBrand()?.picture, activeBrand()?.name));
+$('preview-editor-photo').addEventListener('click', () => openBrandPhoto(brandPicture, $('brand-name').value));
+$('close-brand-photo').addEventListener('click', () => $('brand-photo-dialog').close());
+$('brand-photo-dialog').addEventListener('click', event => {
+  if (event.target !== $('brand-photo-dialog')) return;
+  const bounds = event.currentTarget.getBoundingClientRect();
+  if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) event.currentTarget.close();
+});
+$('brand-photo-dialog').addEventListener('close', () => $('enlarged-brand-photo').removeAttribute('src'));
