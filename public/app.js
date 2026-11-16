@@ -1,4 +1,4 @@
-import { openConnection, checkConnection } from './connections.js';
+import { openConnection, checkConnection, connectionKey } from './connections.js';
 import { readViewState, saveViewState, saveViewFile, readViewFile } from './view-state.js';
 import { downloadVideo } from './download-video.js';
 import { prepareHandoff } from './handoffs.js';
@@ -129,7 +129,7 @@ function openBrandEditor(brand = null, fromAccounts = false) {
   $('save-brand').textContent = brand ? 'Save brand' : 'Create brand';
   $('brand-error').hidden = true;
   updatePicturePreview();
-  renderConnections();
+  renderConnections().catch(() => brandError('Could not load account connections.'));
   $('brand-editor').showModal();
   $('brand-name').focus();
 }
@@ -700,18 +700,32 @@ function installViewPersistence() {
   $('week-scroll').addEventListener('scroll', captureView, { passive: true });
 }
 
+let connectionRender = 0;
 async function renderConnections() {
   const browser = globalThis.chrome;
-  for (const platform of Object.keys(platforms)) {
-    const controls = action => document.querySelector(`[data-${action}="${platform}"]`);
-    const key = `connection:${editingBrandId}:${platform}`;
-    const connection = browser?.runtime?.id && editingBrandId ? (await browser.storage.local.get(key))[key] : null;
-    $('account-status-' + platform).textContent = !editingBrandId ? 'Save this brand to connect accounts' : !browser?.runtime?.id ? 'Open the Chrome extension to connect' : connection?.account ? `${connection.account.name} · ${connection.state === 'connected' ? 'Linked' : 'Confirm this account'}` : 'Not connected';
-    controls('connect').disabled = !editingBrandId || !browser?.runtime?.id;
-    controls('check').hidden = !connection?.tabId;
-    controls('confirm').hidden = connection?.state !== 'detected';
-    controls('disconnect').hidden = connection?.state !== 'connected';
-  }
+  const brandId = editingBrandId;
+  const render = ++connectionRender;
+  const canConnect = Boolean(browser?.runtime?.id && brandId);
+  await Promise.all(Object.keys(platforms).map(async platform => {
+    const key = connectionKey(brandId, platform);
+    const connection = canConnect ? (await browser.storage.local.get(key))[key] : null;
+    const linked = connection?.state === 'connected' && connection.account;
+    const tab = !linked && Number.isInteger(connection?.tabId)
+      ? await browser.tabs.get(connection.tabId).catch(() => null) : null;
+    if (render !== connectionRender || brandId !== editingBrandId) return;
+    const detected = tab && connection.state === 'detected' && connection.account;
+    const action = linked ? 'disconnect' : detected ? 'confirm' : tab ? 'check' : 'connect';
+    for (const name of ['connect', 'check', 'confirm', 'disconnect']) {
+      const button = document.querySelector(`[data-${name}="${platform}"]`);
+      button.hidden = name !== action;
+      if (name === 'connect') button.disabled = !canConnect;
+    }
+    $('account-status-' + platform).textContent = !brandId ? 'Save this brand to connect accounts'
+      : !canConnect ? 'Open the Chrome extension to connect'
+      : linked ? `${linked.name} · Linked`
+      : detected ? `${detected.name} · Confirm this account`
+      : tab ? 'Finish signing in, then check your account' : 'Not connected';
+  }));
 }
 for (const button of document.querySelectorAll('[data-connect], [data-check], [data-confirm], [data-disconnect]')) {
   button.addEventListener('click', async () => {
@@ -720,7 +734,7 @@ for (const button of document.querySelectorAll('[data-connect], [data-check], [d
     if (!brandId || !globalThis.chrome?.runtime?.id) return;
     button.disabled = true;
     try {
-      const key = `connection:${brandId}:${platform}`;
+      const key = connectionKey(brandId, platform);
       if (button.dataset.connect || button.dataset.check) {
         if (button.dataset.connect) {
           const origins = [new URL(platforms[platform].url).origin + '/*'];
@@ -731,10 +745,28 @@ for (const button of document.querySelectorAll('[data-connect], [data-check], [d
       } else if (button.dataset.confirm) {
         const connection = (await chrome.storage.local.get(key))[key];
         if (connection?.state !== 'detected') throw new Error('Check the account first.');
-        await chrome.storage.local.set({ [key]: { ...connection, state: 'connected', verifiedAt: Date.now() } });
+        const account = await checkConnection(chrome, brandId, platform, { save: false });
+        if (account.id !== connection.account.id) {
+          await checkConnection(chrome, brandId, platform);
+          throw new Error('The active account changed. Review it before linking.');
+        }
+        await chrome.storage.local.set({ [key]: { state: 'connected', account, verifiedAt: Date.now() } });
       } else await chrome.storage.local.remove(key);
       $('brand-error').hidden = true;
     } catch (error) { brandError(error.message); }
-    finally { button.disabled = false; if (editingBrandId === brandId) renderConnections(); }
+    finally { button.disabled = false; if (editingBrandId === brandId) refreshOpenConnections(); }
+  });
+}
+
+function refreshOpenConnections() {
+  if ($('brand-editor').open) renderConnections().catch(() => {});
+}
+window.addEventListener('focus', refreshOpenConnections);
+if (globalThis.chrome?.runtime?.id) {
+  chrome.tabs.onRemoved.addListener(refreshOpenConnections);
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && Object.keys(changes).some(key => key.startsWith(`connection:${editingBrandId}:`))) {
+      refreshOpenConnections();
+    }
   });
 }
