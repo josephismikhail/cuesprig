@@ -1,4 +1,3 @@
-import { openConnection, checkConnection } from './connections.js';
 import { startBackgroundUpload, jobKey } from './background-upload.js';
 import { readHandoff } from './app/handoffs.js';
 import { handoffKey } from './app/handoffs.js';
@@ -20,12 +19,9 @@ chrome.tabs.onRemoved.addListener(async tabId => {
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
   if (sender.id !== chrome.runtime.id ||
       sender.url?.split(/[?#]/)[0] !== chrome.runtime.getURL('app/index.html')) return;
-  const action = message.type === 'cuesprig:connect' ? () => openConnection(chrome, message.brandId, message.platform)
-    : message.type === 'cuesprig:check-account' ? () => checkConnection(chrome, message.brandId, message.platform)
-    : message.type === 'cuesprig:send' ? () => startBackgroundUpload(chrome, message.id, message.platform) : null;
-  if (!action) return;
-  action().then(
-    result => respond({ ok: true, result }),
+  if (message?.type !== 'cuesprig:send') return;
+  startBackgroundUpload(chrome, message.id, message.platform).then(
+    () => respond({ ok: true }),
     error => respond({ error: error.message }),
   );
   return true;

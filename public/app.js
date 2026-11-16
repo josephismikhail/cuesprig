@@ -1,3 +1,4 @@
+import { openConnection, checkConnection } from './connections.js';
 import { readViewState, saveViewState, saveViewFile, readViewFile } from './view-state.js';
 import { downloadVideo } from './download-video.js';
 import { prepareHandoff } from './handoffs.js';
@@ -725,9 +726,8 @@ for (const button of document.querySelectorAll('[data-connect], [data-check], [d
           const origins = [new URL(platforms[platform].url).origin + '/*'];
           if (!await chrome.permissions.request({ origins })) throw new Error('Allow platform access to connect this account.');
         }
-        const response = await chrome.runtime.sendMessage({ type: button.dataset.connect ? 'cuesprig:connect' : 'cuesprig:check-account', brandId, platform });
-        if (response?.error) throw new Error(response.error);
-        if (!response?.ok) throw new Error('Reload the Cuesprig extension in Chrome, then try again.');
+        if (button.dataset.connect) await openConnection(chrome, brandId, platform);
+        else await checkConnection(chrome, brandId, platform);
       } else if (button.dataset.confirm) {
         const connection = (await chrome.storage.local.get(key))[key];
         if (connection?.state !== 'detected') throw new Error('Check the account first.');

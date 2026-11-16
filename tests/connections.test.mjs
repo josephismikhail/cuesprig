@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { openConnection, checkConnection, connectionKey, detectAccount } from '../extension/connections.js';
+import { openConnection, checkConnection, connectionKey, detectAccount } from '../public/connections.js';
 
 for (const platform of ['youtube', 'instagram', 'tiktok']) {
   test(`${platform} connection stays pending until an account is detected`, async () => {
