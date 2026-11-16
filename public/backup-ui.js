@@ -5,8 +5,11 @@ const $ = id => document.getElementById(id);
 let busy = false;
 const dialog = $('backup-dialog');
 
+$('open-settings').addEventListener('click', () => $('app-settings').showModal());
+$('close-settings').addEventListener('click', () => $('app-settings').close());
+
 $('open-backup').addEventListener('click', () => {
-  $('brand-menu').hidePopover();
+  $('app-settings').close();
   $('restore-backup').reset();
   $('backup-status').textContent = '';
   dialog.showModal();
