@@ -555,3 +555,9 @@ textarea {
 .account-sign-in { color: var(--ink, #35243f); font: inherit; font-size: 13px; padding: 8px 13px; border-radius: 7px; border: 1px solid var(--border); background: #f5eff8; text-decoration: none; }
 .account-sign-in:hover { background: #ede1f7; }
 .account-sign-in:focus-visible { outline: 2px solid #624775; outline-offset: 3px; }
+
+.settings-button { padding: 8px 10px; border: 0; border-radius: 7px; background: transparent; color: var(--muted); font: inherit; font-size: 14px; cursor: pointer; }
+.settings-button:hover { background: #ede1f7; }
+#app-settings { width: min(420px, calc(100% - 32px)); padding: 28px; }
+.settings-row { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 18px 0; border: 0; border-top: 1px solid var(--border); background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.settings-row:hover { color: #624775; }

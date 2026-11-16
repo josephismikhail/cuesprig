@@ -20,10 +20,11 @@
     <div class="workspace-actions">
       <button class="accounts-button" id="open-phone-sync" hidden>Phone calendar</button>
       <button class="brand-switcher" id="brand-switcher" popovertarget="brand-menu" aria-label="Switch brand" disabled><span class="avatar" id="active-avatar" aria-hidden="true"></span><span id="active-brand-name">My brand</span><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button>
+      <button class="settings-button" id="open-settings" aria-label="App settings" title="App settings">Settings</button>
     </div>
     <div id="brand-menu" popover>
       <p class="menu-label">Your brands</p><div id="brand-list"></div>
-      <div class="brand-menu-footer"><button id="edit-active-brand">Edit brand</button><button id="add-brand">+ Add brand</button><button id="open-backup">Backup</button></div>
+      <div class="brand-menu-footer"><button id="edit-active-brand">Edit brand</button><button id="add-brand">+ Add brand</button></div>
     </div>
   </header>
   <main>
@@ -55,6 +56,10 @@
       <p id="schedule-error" role="alert" hidden></p>
       <div class="platform-actions"><button type="submit" class="save-button">Save schedule record</button><button type="button" id="remove-schedule" class="today-button" hidden>Remove record</button></div>
     </form>
+  </dialog>
+  <dialog id="app-settings" aria-labelledby="settings-title">
+    <div class="accounts-header"><h2 id="settings-title">App settings</h2><button type="button" class="close-button" id="close-settings" aria-label="Close settings">×</button></div>
+    <button type="button" class="settings-row" id="open-backup"><span>Backup and restore</span><span aria-hidden="true">›</span></button>
   </dialog>
   <dialog id="backup-dialog" aria-labelledby="backup-title">
     <div class="accounts-header"><h2 id="backup-title">Calendar backup</h2><button type="button" class="close-button" id="close-backup" aria-label="Close backup">×</button></div>
