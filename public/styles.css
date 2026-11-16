@@ -74,6 +74,7 @@ dialog {
   background:#fff;
   overflow:auto
 }
+dialog:focus { outline: none; }
 dialog::backdrop {
   background:#35243F55;
   backdrop-filter:blur(6px)

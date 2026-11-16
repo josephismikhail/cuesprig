@@ -23,6 +23,7 @@ let toastTimer;
 let brands = [];
 let activeBrandId = null;
 let editingBrandId = null;
+let connectionRender = 0;
 let brandPicture = null;
 let brandBusy = false;
 let pictureRequest = 0;
@@ -700,7 +701,6 @@ function installViewPersistence() {
   $('week-scroll').addEventListener('scroll', captureView, { passive: true });
 }
 
-let connectionRender = 0;
 async function renderConnections() {
   const browser = globalThis.chrome;
   const brandId = editingBrandId;
