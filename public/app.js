@@ -181,23 +181,41 @@ $('brand-picture-file').addEventListener('change', async () => {
   } catch { if (request === pictureRequest) brandError('This image could not be opened. Choose another picture.'); }
   finally { if (request === pictureRequest) $('save-brand').disabled = false; }
 });
+function brandFromEditor() {
+  const name = $('brand-name').value.trim();
+  let error;
+  if (!name) error = 'Give your brand a name.';
+  else if (brands.some(brand => brand.id !== editingBrandId && brand.name.toLowerCase() === name.toLowerCase())) {
+    error = 'A brand with this name already exists. Choose another name.';
+  }
+  if (error) {
+    brandError(error);
+    $('brand-name').focus();
+    return null;
+  }
+  return { id: editingBrandId || crypto.randomUUID(), name, picture: brandPicture };
+}
+
+async function persistBrand(brand) {
+  try { await storeBrand(brand); }
+  catch { throw new Error('Could not save this brand on your device. Please try again.'); }
+  brands = brands.filter(item => item.id !== brand.id).concat(brand);
+  activeBrandId = brand.id;
+  renderBrands();
+  renderCalendar();
+  window.dispatchEvent(new Event('cuesprig:schedules-changed'));
+}
+
 $('brand-form').addEventListener('submit', async event => {
   event.preventDefault();
   if (brandBusy || $('save-brand').disabled) return;
-  const name = $('brand-name').value.trim();
-  if (!name) { brandError('Give your brand a name.'); $('brand-name').focus(); return; }
-  if (brands.some(brand => brand.id !== editingBrandId && brand.name.toLocaleLowerCase() === name.toLocaleLowerCase())) {
-    brandError('A brand with this name already exists. Choose another name.'); return;
-  }
-  const brand = { id: editingBrandId || crypto.randomUUID(), name, picture: brandPicture };
+  const brand = brandFromEditor();
+  if (!brand) return;
   brandBusy = true; $('save-brand').disabled = true;
   try {
-    await storeBrand(brand);
-    window.dispatchEvent(new Event('cuesprig:schedules-changed'));
-    brands = brands.filter(item => item.id !== brand.id).concat(brand);
-    activeBrandId = brand.id;
-    renderBrands(); renderCalendar(); $('brand-editor').close();
-  } catch { brandError('Could not save this brand on your device. Please try again.'); }
+    await persistBrand(brand);
+    $('brand-editor').close();
+  } catch (error) { brandError(error.message); }
   finally { brandBusy = false; $('save-brand').disabled = false; }
 });
 
@@ -712,10 +730,13 @@ async function renderConnections() {
   const browser = globalThis.chrome;
   const brandId = editingBrandId;
   const render = ++connectionRender;
-  const canConnect = Boolean(browser?.runtime?.id && brandId);
+  const canConnect = Boolean(browser?.runtime?.id);
+  $('brand-connect-note').textContent = canConnect && !brandId
+    ? 'Connecting saves this brand first. Then sign in and check the account.'
+    : 'Sign in, then check the account to link it to this brand.';
   await Promise.all(Object.keys(platforms).map(async platform => {
     const key = connectionKey(brandId, platform);
-    const connection = canConnect ? (await browser.storage.local.get(key))[key] : null;
+    const connection = canConnect && brandId ? (await browser.storage.local.get(key))[key] : null;
     const linked = connection?.state === 'connected' && connection.account;
     const tab = !linked && Number.isInteger(connection?.tabId)
       ? await browser.tabs.get(connection.tabId).catch(() => null) : null;
@@ -727,8 +748,7 @@ async function renderConnections() {
       button.hidden = name !== action;
       if (name === 'connect') button.disabled = !canConnect;
     }
-    $('account-status-' + platform).textContent = !brandId ? 'Save this brand to connect accounts'
-      : !canConnect ? 'Open the Chrome extension to connect'
+    $('account-status-' + platform).textContent = !canConnect ? 'Open the Chrome extension to connect'
       : linked ? `${linked.name} · Linked`
       : detected ? `${detected.name} · Confirm this account`
       : tab ? 'Finish signing in, then check your account' : 'Not connected';
@@ -737,8 +757,14 @@ async function renderConnections() {
 for (const button of document.querySelectorAll('[data-connect], [data-check], [data-confirm], [data-disconnect]')) {
   button.addEventListener('click', async () => {
     const platform = button.dataset.connect || button.dataset.check || button.dataset.confirm || button.dataset.disconnect;
-    const brandId = editingBrandId;
-    if (!brandId || !globalThis.chrome?.runtime?.id) return;
+    let brandId = editingBrandId;
+    if (brandBusy || !globalThis.chrome?.runtime?.id) return;
+    const creating = !brandId && Boolean(button.dataset.connect);
+    if (!brandId && !creating) return;
+    if (creating && $('save-brand').disabled) return;
+    const newBrand = creating ? brandFromEditor() : null;
+    if (creating && !newBrand) return;
+    brandBusy = true;
     button.disabled = true;
     try {
       const key = connectionKey(brandId, platform);
@@ -746,6 +772,12 @@ for (const button of document.querySelectorAll('[data-connect], [data-check], [d
         if (button.dataset.connect) {
           const origins = [new URL(platforms[platform].url).origin + '/*'];
           if (!await chrome.permissions.request({ origins })) throw new Error('Allow platform access to connect this account.');
+          if (newBrand) {
+            await persistBrand(newBrand);
+            brandId = editingBrandId = newBrand.id;
+            $('brand-editor-title').textContent = 'Edit brand';
+            $('save-brand').textContent = 'Save brand';
+          }
         }
         if (button.dataset.connect) await openConnection(chrome, brandId, platform);
         else await checkConnection(chrome, brandId, platform);
@@ -761,7 +793,7 @@ for (const button of document.querySelectorAll('[data-connect], [data-check], [d
       } else await chrome.storage.local.remove(key);
       $('brand-error').hidden = true;
     } catch (error) { brandError(error.message); }
-    finally { button.disabled = false; if (editingBrandId === brandId) refreshOpenConnections(); }
+    finally { brandBusy = false; button.disabled = false; refreshOpenConnections(); }
   });
 }
 
