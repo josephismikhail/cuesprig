@@ -13,7 +13,7 @@
     "test:browser": "npm run build && node --test tests/*.browser.mjs"
   },
   "devDependencies": {
-    "playwright": "1.65.0"
+    "playwright": "1.65.1"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.2",
